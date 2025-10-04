@@ -7,7 +7,7 @@ import java.util.*;
 
 /**
  * Basic structure + card value calculation
- * Responsible for detecting and analysing melds in a Rummy hand.
+ * Responsible for detecting and analyzing melds in a Rummy hand.
  */
 public class MeldDetector {
 
@@ -96,12 +96,81 @@ public class MeldDetector {
         }
     }
 
-    public static MeldAnalysis findBestMelds(Hand hand) {
-        // For now, return empty melds (all cards are deadwood)
-        List<Card> allCards = new ArrayList<>(hand.getCardList());
-        return new MeldAnalysis(new ArrayList<>(), allCards);
+    /**
+     * Find all possible sets (3-4 cards of same rank)
+     */
+    private static List<Meld> findAllSets(List<Card> cards) {
+        List<Meld> sets = new ArrayList<>();
+
+        // Group cards by rank
+        Map<Rank, List<Card>> cardsByRank = new HashMap<>();
+        for (Card card : cards) {
+            Rank rank = (Rank) card.getRank();
+            cardsByRank.putIfAbsent(rank, new ArrayList<>());
+            cardsByRank.get(rank).add(card);
+        }
+
+        // For each rank with 3+ cards, create sets
+        for (Map.Entry<Rank, List<Card>> entry : cardsByRank.entrySet()) {
+            List<Card> rankCards = entry.getValue();
+
+            if (rankCards.size() == 3) {
+                // Set of 3
+                sets.add(new Meld(rankCards, Meld.MeldType.SET));
+            } else if (rankCards.size() == 4) {
+                // Set of 4
+                sets.add(new Meld(rankCards, Meld.MeldType.SET));
+
+                // Also add all possible sets of 3 from these 4 cards
+                for (int i = 0; i < 4; i++) {
+                    List<Card> setOf3 = new ArrayList<>();
+                    for (int j = 0; j < 4; j++) {
+                        if (i != j) {
+                            setOf3.add(rankCards.get(j));
+                        }
+                    }
+                    sets.add(new Meld(setOf3, Meld.MeldType.SET));
+                }
+            }
+        }
+
+        return sets;
     }
 
+    /**
+     * Placeholder
+     */
+    public static MeldAnalysis findBestMelds(Hand hand) {
+        List<Card> allCards = new ArrayList<>(hand.getCardList());
+
+        // Stage 2: Only find sets
+        List<Meld> allSets = findAllSets(allCards);
+
+        // For now, just use the first set if available
+        List<Meld> melds = new ArrayList<>();
+        if (!allSets.isEmpty()) {
+            melds.add(allSets.get(0));
+        }
+
+        // Calculate deadwood
+        Set<Card> meldedCards = new HashSet<>();
+        for (Meld meld : melds) {
+            meldedCards.addAll(meld.getCards());
+        }
+
+        List<Card> deadwood = new ArrayList<>();
+        for (Card card : allCards) {
+            if (!meldedCards.contains(card)) {
+                deadwood.add(card);
+            }
+        }
+
+        return new MeldAnalysis(melds, deadwood);
+    }
+
+    /**
+     * Placeholder
+     */
     public static boolean allCardsFormedIntoMelds(Hand hand) {
         MeldAnalysis analysis = findBestMelds(hand);
         return analysis.getDeadwood().isEmpty();

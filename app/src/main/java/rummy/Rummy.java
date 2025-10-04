@@ -683,6 +683,7 @@ public class Rummy extends CardGame {
         initScores();
         initScore();
         setupButtons();
+        quickTest();
 
         currentRound = 0;
         boolean isContinue = true;
@@ -721,4 +722,53 @@ public class Rummy extends CardGame {
         nbStartCards = Integer.parseInt(properties.getProperty("number_cards", "13"));
     }
 
+    private static void quickTest() {
+        System.out.println("=== Testing Stage 2: Set Detection ===");
+
+        Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
+        Hand sourceDeck = deck.toHand(false);
+        Hand specificHand = new Hand(deck);
+
+        // Get a copy of the list to avoid concurrent modification
+        List<Card> allCards = new ArrayList<>(sourceDeck.getCardList());
+
+        // Find and add three 8s and four Kings
+        int eightCount = 0;
+        int kingCount = 0;
+
+        for (Card card : allCards) {
+            Rank rank = (Rank) card.getRank();
+            if (rank.getShortHandValue() == 8 && eightCount < 3) {
+                card.removeFromHand(false);
+                specificHand.insert(card, false);
+                eightCount++;
+            }
+            else if (rank.getShortHandValue() == 13 && kingCount < 4) {
+                card.removeFromHand(false);
+                specificHand.insert(card, false);
+                kingCount++;
+            }
+
+            if (eightCount >= 3 && kingCount >= 4) break;
+        }
+
+        // Add a few more random cards
+        List<Card> remaining = new ArrayList<>(sourceDeck.getCardList());
+        for (int i = 0; i < 3 && i < remaining.size(); i++) {
+            Card card = remaining.get(i);
+            card.removeFromHand(false);
+            specificHand.insert(card, false);
+        }
+
+        MeldDetector.MeldAnalysis analysis = MeldDetector.findBestMelds(specificHand);
+
+        System.out.println("Total cards in hand: " + specificHand.getNumberOfCards());
+        System.out.println("Melds found: " + analysis.getMelds().size());
+        for (MeldDetector.Meld meld : analysis.getMelds()) {
+            System.out.println("  " + meld.getType() + " with " + meld.size() + " cards");
+        }
+        System.out.println("Deadwood cards: " + analysis.getDeadwood().size());
+        System.out.println("Deadwood value: " + analysis.getDeadwoodValue());
+        System.out.println("=== Stage 2 Test Complete ===\n");
+    }
 }
