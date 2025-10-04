@@ -138,18 +138,78 @@ public class MeldDetector {
     }
 
     /**
-     * Placeholder
+     * Find all possible runs (3+ consecutive cards of same suit)
      */
+    private static List<Meld> findAllRuns(List<Card> cards) {
+        List<Meld> runs = new ArrayList<>();
+
+        // Group cards by suit
+        Map<Suit, List<Card>> cardsBySuit = new HashMap<>();
+        for (Card card : cards) {
+            Suit suit = (Suit) card.getSuit();
+            cardsBySuit.putIfAbsent(suit, new ArrayList<>());
+            cardsBySuit.get(suit).add(card);
+        }
+
+        // For each suit, find all runs
+        for (Map.Entry<Suit, List<Card>> entry : cardsBySuit.entrySet()) {
+            List<Card> suitCards = entry.getValue();
+
+            if (suitCards.size() < 3) {
+                continue; // Need at least 3 cards for a run
+            }
+
+            // Sort by rank value
+            suitCards.sort(Comparator.comparingInt(c -> ((Rank)c.getRank()).getShortHandValue()));
+
+            // Find all consecutive runs of length 3 or more
+            for (int start = 0; start < suitCards.size(); start++) {
+                for (int end = start + 2; end < suitCards.size(); end++) {
+                    List<Card> potentialRun = suitCards.subList(start, end + 1);
+                    if (isConsecutiveRun(potentialRun)) {
+                        runs.add(new Meld(potentialRun, Meld.MeldType.RUN));
+                    }
+                }
+            }
+        }
+
+        return runs;
+    }
+
+    /**
+     * Checks if cards form a consecutive run
+     */
+    private static boolean isConsecutiveRun(List<Card> cards) {
+        if (cards.size() < 3) return false;
+
+        for (int i = 0; i < cards.size() - 1; i++) {
+            int currentRank = ((Rank)cards.get(i).getRank()).getShortHandValue();
+            int nextRank = ((Rank)cards.get(i + 1).getRank()).getShortHandValue();
+
+            // Must be consecutive (difference of 1)
+            if (nextRank - currentRank != 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static MeldAnalysis findBestMelds(Hand hand) {
         List<Card> allCards = new ArrayList<>(hand.getCardList());
 
-        // Stage 2: Only find sets
+        // Stage 3: Find both sets and runs
         List<Meld> allSets = findAllSets(allCards);
+        List<Meld> allRuns = findAllRuns(allCards);
 
-        // For now, just use the first set if available
+        List<Meld> allMelds = new ArrayList<>();
+        allMelds.addAll(allSets);
+        allMelds.addAll(allRuns);
+
+        // For now, just use the first meld if available
         List<Meld> melds = new ArrayList<>();
-        if (!allSets.isEmpty()) {
-            melds.add(allSets.get(0));
+        if (!allMelds.isEmpty()) {
+            melds.add(allMelds.get(0));
         }
 
         // Calculate deadwood

@@ -723,41 +723,46 @@ public class Rummy extends CardGame {
     }
 
     private static void quickTest() {
-        System.out.println("=== Testing Stage 2: Set Detection ===");
+        System.out.println("=== Testing Stage 3: Run Detection ===");
 
         Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
         Hand sourceDeck = deck.toHand(false);
         Hand specificHand = new Hand(deck);
 
-        // Get a copy of the list to avoid concurrent modification
         List<Card> allCards = new ArrayList<>(sourceDeck.getCardList());
 
-        // Find and add three 8s and four Kings
-        int eightCount = 0;
-        int kingCount = 0;
+        // Build a hand
+        int[] targetRanks = {3, 4, 5, 6, 7, 8};
+        Map<Integer, Integer> rankCounts = new HashMap<>();
 
         for (Card card : allCards) {
             Rank rank = (Rank) card.getRank();
-            if (rank.getShortHandValue() == 8 && eightCount < 3) {
-                card.removeFromHand(false);
-                specificHand.insert(card, false);
-                eightCount++;
-            }
-            else if (rank.getShortHandValue() == 13 && kingCount < 4) {
-                card.removeFromHand(false);
-                specificHand.insert(card, false);
-                kingCount++;
-            }
+            Suit suit = (Suit) card.getSuit();
+            int rankValue = rank.getShortHandValue();
 
-            if (eightCount >= 3 && kingCount >= 4) break;
+            // Add spades 3-4-5
+            if (suit == Suit.SPADES && rankValue >= 3 && rankValue <= 5) {
+                card.removeFromHand(false);
+                specificHand.insert(card, false);
+            }
+            // Add diamonds 6-7-8
+            else if (suit == Suit.DIAMONDS && rankValue >= 6 && rankValue <= 8) {
+                card.removeFromHand(false);
+                specificHand.insert(card, false);
+            }
         }
 
-        // Add a few more random cards
+        // Add a few non-consecutive cards
         List<Card> remaining = new ArrayList<>(sourceDeck.getCardList());
-        for (int i = 0; i < 3 && i < remaining.size(); i++) {
-            Card card = remaining.get(i);
-            card.removeFromHand(false);
-            specificHand.insert(card, false);
+        int added = 0;
+        for (Card card : remaining) {
+            if (added >= 4) break;
+            Rank rank = (Rank) card.getRank();
+            if (rank.getShortHandValue() == 2 || rank.getShortHandValue() == 13) {
+                card.removeFromHand(false);
+                specificHand.insert(card, false);
+                added++;
+            }
         }
 
         MeldDetector.MeldAnalysis analysis = MeldDetector.findBestMelds(specificHand);
@@ -767,8 +772,9 @@ public class Rummy extends CardGame {
         for (MeldDetector.Meld meld : analysis.getMelds()) {
             System.out.println("  " + meld.getType() + " with " + meld.size() + " cards");
         }
+        System.out.println("Total cards in melds: " + analysis.getTotalMeldedCards());
         System.out.println("Deadwood cards: " + analysis.getDeadwood().size());
         System.out.println("Deadwood value: " + analysis.getDeadwoodValue());
-        System.out.println("=== Stage 2 Test Complete ===\n");
+        System.out.println("=== Stage 3 Test Complete ===\n");
     }
 }
