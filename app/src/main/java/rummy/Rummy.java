@@ -723,7 +723,7 @@ public class Rummy extends CardGame {
     }
 
     private static void quickTest() {
-        System.out.println("=== Testing Stage 3: Run Detection ===");
+        System.out.println("=== Testing Stage 4: Best Combination ===");
 
         Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
         Hand sourceDeck = deck.toHand(false);
@@ -731,37 +731,29 @@ public class Rummy extends CardGame {
 
         List<Card> allCards = new ArrayList<>(sourceDeck.getCardList());
 
-        // Build a hand
-        int[] targetRanks = {3, 4, 5, 6, 7, 8};
-        Map<Integer, Integer> rankCounts = new HashMap<>();
+        // Example 1 from spec: ♠3,♠4,♠5, ♣6, ♦6,♦7,♦8, ♥8,♥9,♥10, ♣10,♣J,♣Q
+        // Expected: 4 runs, deadwood = ♣6 (6 points)
+        int[][] targetCards = {
+                {3, 0}, {4, 0}, {5, 0},
+                {6, 3},
+                {6, 1}, {7, 1}, {8, 1},
+                {8, 2}, {9, 2}, {10, 2},
+                {10, 3}, {11, 3}, {12, 3}
+        };
 
-        for (Card card : allCards) {
-            Rank rank = (Rank) card.getRank();
-            Suit suit = (Suit) card.getSuit();
-            int rankValue = rank.getShortHandValue();
+        for (int[] target : targetCards) {
+            int rankValue = target[0];
+            int suitOrdinal = target[1];
 
-            // Add spades 3-4-5
-            if (suit == Suit.SPADES && rankValue >= 3 && rankValue <= 5) {
-                card.removeFromHand(false);
-                specificHand.insert(card, false);
-            }
-            // Add diamonds 6-7-8
-            else if (suit == Suit.DIAMONDS && rankValue >= 6 && rankValue <= 8) {
-                card.removeFromHand(false);
-                specificHand.insert(card, false);
-            }
-        }
+            for (Card card : allCards) {
+                Rank rank = (Rank) card.getRank();
+                Suit suit = (Suit) card.getSuit();
 
-        // Add a few non-consecutive cards
-        List<Card> remaining = new ArrayList<>(sourceDeck.getCardList());
-        int added = 0;
-        for (Card card : remaining) {
-            if (added >= 4) break;
-            Rank rank = (Rank) card.getRank();
-            if (rank.getShortHandValue() == 2 || rank.getShortHandValue() == 13) {
-                card.removeFromHand(false);
-                specificHand.insert(card, false);
-                added++;
+                if (rank.getShortHandValue() == rankValue && suit.ordinal() == suitOrdinal) {
+                    card.removeFromHand(false);
+                    specificHand.insert(card, false);
+                    break;
+                }
             }
         }
 
@@ -775,6 +767,7 @@ public class Rummy extends CardGame {
         System.out.println("Total cards in melds: " + analysis.getTotalMeldedCards());
         System.out.println("Deadwood cards: " + analysis.getDeadwood().size());
         System.out.println("Deadwood value: " + analysis.getDeadwoodValue());
-        System.out.println("=== Stage 3 Test Complete ===\n");
+        System.out.println("\nExpected: 4 RUNs, 12 cards melded, 1 deadwood (♣6 = 6 points)");
+        System.out.println("=== Stage 4 Test Complete ===\n");
     }
 }

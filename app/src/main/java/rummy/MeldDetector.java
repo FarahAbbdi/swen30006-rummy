@@ -195,10 +195,108 @@ public class MeldDetector {
         return true;
     }
 
+    /**
+     * Checks if a meld overlaps with any meld in the list
+     */
+    private static boolean overlapsWithAny(Meld meld, List<Meld> melds) {
+        Set<Card> meldCards = new HashSet<>(meld.getCards());
+
+        for (Meld other : melds) {
+            for (Card card : other.getCards()) {
+                if (meldCards.contains(card)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Finds all valid (non-overlapping) combinations of melds
+     */
+    private static List<List<Meld>> findAllValidCombinations(List<Meld> melds) {
+        List<List<Meld>> result = new ArrayList<>();
+        findCombinationsRecursive(melds, 0, new ArrayList<>(), result);
+        return result;
+    }
+
+    private static void findCombinationsRecursive(List<Meld> melds, int index,
+                                                  List<Meld> current, List<List<Meld>> result) {
+        // Add current combination (even if empty)
+        result.add(new ArrayList<>(current));
+
+        // Try adding each remaining meld
+        for (int i = index; i < melds.size(); i++) {
+            Meld meld = melds.get(i);
+
+            // Only add if it doesn't overlap with current combination
+            if (!overlapsWithAny(meld, current)) {
+                current.add(meld);
+                findCombinationsRecursive(melds, i + 1, current, result);
+                current.remove(current.size() - 1);
+            }
+        }
+    }
+
+    /**
+     * Finds the best combination of non-overlapping melds
+     * Prioritises: 1) Maximum cards melded, 2) Minimum deadwood value
+     */
+    private static List<Meld> findBestMeldCombination(List<Card> allCards, List<Meld> allMelds) {
+        List<List<Meld>> validCombinations = findAllValidCombinations(allMelds);
+
+        if (validCombinations.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Sort by: 1) Most cards melded, 2) Lowest deadwood value
+        validCombinations.sort((combo1, combo2) -> {
+            int cards1 = combo1.stream().mapToInt(Meld::size).sum();
+            int cards2 = combo2.stream().mapToInt(Meld::size).sum();
+
+            if (cards1 != cards2) {
+                return Integer.compare(cards2, cards1); // More cards is better
+            }
+
+            // Calculate deadwood values for tie-breaking
+            Set<Card> melded1 = new HashSet<>();
+            for (Meld m : combo1) {
+                melded1.addAll(m.getCards());
+            }
+
+            Set<Card> melded2 = new HashSet<>();
+            for (Meld m : combo2) {
+                melded2.addAll(m.getCards());
+            }
+
+            int deadwood1 = 0;
+            for (Card c : allCards) {
+                if (!melded1.contains(c)) {
+                    deadwood1 += getCardValue(c);
+                }
+            }
+
+            int deadwood2 = 0;
+            for (Card c : allCards) {
+                if (!melded2.contains(c)) {
+                    deadwood2 += getCardValue(c);
+                }
+            }
+
+            return Integer.compare(deadwood1, deadwood2); // Lower deadwood is better
+        });
+
+        return validCombinations.get(0);
+    }
+
+    /**
+     * Complete implementation
+     */
     public static MeldAnalysis findBestMelds(Hand hand) {
         List<Card> allCards = new ArrayList<>(hand.getCardList());
 
-        // Stage 3: Find both sets and runs
+        // Find all possible melds
         List<Meld> allSets = findAllSets(allCards);
         List<Meld> allRuns = findAllRuns(allCards);
 
@@ -206,15 +304,12 @@ public class MeldDetector {
         allMelds.addAll(allSets);
         allMelds.addAll(allRuns);
 
-        // For now, just use the first meld if available
-        List<Meld> melds = new ArrayList<>();
-        if (!allMelds.isEmpty()) {
-            melds.add(allMelds.get(0));
-        }
+        // Find the best combination
+        List<Meld> bestMelds = findBestMeldCombination(allCards, allMelds);
 
         // Calculate deadwood
         Set<Card> meldedCards = new HashSet<>();
-        for (Meld meld : melds) {
+        for (Meld meld : bestMelds) {
             meldedCards.addAll(meld.getCards());
         }
 
@@ -225,7 +320,7 @@ public class MeldDetector {
             }
         }
 
-        return new MeldAnalysis(melds, deadwood);
+        return new MeldAnalysis(bestMelds, deadwood);
     }
 
     /**
