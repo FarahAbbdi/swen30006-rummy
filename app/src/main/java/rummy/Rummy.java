@@ -683,7 +683,6 @@ public class Rummy extends CardGame {
         initScores();
         initScore();
         setupButtons();
-        quickTest();
 
         currentRound = 0;
         boolean isContinue = true;
@@ -720,54 +719,5 @@ public class Rummy extends CardGame {
         thinkingTime = Integer.parseInt(properties.getProperty("thinkingTime", "200"));
         delayTime = Integer.parseInt(properties.getProperty("delayTime", "50"));
         nbStartCards = Integer.parseInt(properties.getProperty("number_cards", "13"));
-    }
-
-    private static void quickTest() {
-        System.out.println("=== Testing Stage 4: Best Combination ===");
-
-        Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
-        Hand sourceDeck = deck.toHand(false);
-        Hand specificHand = new Hand(deck);
-
-        List<Card> allCards = new ArrayList<>(sourceDeck.getCardList());
-
-        // Example 1 from spec: ♠3,♠4,♠5, ♣6, ♦6,♦7,♦8, ♥8,♥9,♥10, ♣10,♣J,♣Q
-        // Expected: 4 runs, deadwood = ♣6 (6 points)
-        int[][] targetCards = {
-                {3, 0}, {4, 0}, {5, 0},
-                {6, 3},
-                {6, 1}, {7, 1}, {8, 1},
-                {8, 2}, {9, 2}, {10, 2},
-                {10, 3}, {11, 3}, {12, 3}
-        };
-
-        for (int[] target : targetCards) {
-            int rankValue = target[0];
-            int suitOrdinal = target[1];
-
-            for (Card card : allCards) {
-                Rank rank = (Rank) card.getRank();
-                Suit suit = (Suit) card.getSuit();
-
-                if (rank.getShortHandValue() == rankValue && suit.ordinal() == suitOrdinal) {
-                    card.removeFromHand(false);
-                    specificHand.insert(card, false);
-                    break;
-                }
-            }
-        }
-
-        MeldDetector.MeldAnalysis analysis = MeldDetector.findBestMelds(specificHand);
-
-        System.out.println("Total cards in hand: " + specificHand.getNumberOfCards());
-        System.out.println("Melds found: " + analysis.getMelds().size());
-        for (MeldDetector.Meld meld : analysis.getMelds()) {
-            System.out.println("  " + meld.getType() + " with " + meld.size() + " cards");
-        }
-        System.out.println("Total cards in melds: " + analysis.getTotalMeldedCards());
-        System.out.println("Deadwood cards: " + analysis.getDeadwood().size());
-        System.out.println("Deadwood value: " + analysis.getDeadwoodValue());
-        System.out.println("\nExpected: 4 RUNs, 12 cards melded, 1 deadwood (♣6 = 6 points)");
-        System.out.println("=== Stage 4 Test Complete ===\n");
     }
 }

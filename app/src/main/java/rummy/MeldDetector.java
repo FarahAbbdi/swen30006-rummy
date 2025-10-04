@@ -324,7 +324,8 @@ public class MeldDetector {
     }
 
     /**
-     * Placeholder
+     * Checks if all cards in a hand form valid melds
+     * Used for Rummy/Gin declaration validation
      */
     public static boolean allCardsFormedIntoMelds(Hand hand) {
         MeldAnalysis analysis = findBestMelds(hand);
