@@ -8,6 +8,8 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// first commit by dimitri
+
 @SuppressWarnings("serial")
 public class Rummy extends CardGame {
     static public final int seed = 30008;
