@@ -493,7 +493,6 @@ public class Rummy extends CardGame {
     private void waitingForHumanToEndTurn() {
         endTurnActor.setMouseTouchEnabled(true);
         isEndingTurn = false;
-        isRummyDeclared = false;
 
         while (!isEndingTurn && !isRummyDeclared) {
             delay(delayTime);
@@ -511,6 +510,8 @@ public class Rummy extends CardGame {
 
     private void processNonAutoPlaying(int nextPlayer, Hand hand) {
         if (HUMAN_PLAYER_INDEX == nextPlayer) {
+            isRummyDeclared = false;
+
             if (!discard.isEmpty()) {
                 setStatus("Player " + nextPlayer + " is playing. Please double click on a pile to draw");
                 waitingForHumanToSelectPile(pack, discard);
@@ -529,6 +530,12 @@ public class Rummy extends CardGame {
             waitingForHumanToEndTurn();
             enableRummyButton(false);
             addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+
+            if (isRummyDeclared) {
+                addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
+            } else {
+                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+            }
         } else {
             setStatusText("Player " + nextPlayer + " thinking...");
             if (!discard.isEmpty()) {
@@ -665,25 +672,34 @@ public class Rummy extends CardGame {
                     processNonAutoPlaying(nextPlayer, hand);
                 }
 
+                if (isRummyDeclared) {
+                    System.out.println("\n>>> VALIDATING RUMMY DECLARATION <<<");
+                    System.out.println("Declarer: Player " + nextPlayer);
+                    Hand declarerHand = hands[nextPlayer];
+                    System.out.println("Cards in hand: " + declarerHand.getNumberOfCards());
+
+                    boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
+                    System.out.println("All cards form melds? " + allMelded);
+
+                    if (!allMelded) {
+                        System.out.println("INVALID RUMMY - continuing game");
+                        setStatus("Invalid Rummy declaration - not all cards form melds");
+                        isRummyDeclared = false;
+                        rummyDeclarer = -1;
+                        // Don't break - continue playing
+                    } else {
+                        System.out.println("VALID RUMMY - ending round");
+                        isContinue = false;
+                        break; // Break out of for loop
+                    }
+                }
+
                 if (pack.isEmpty()) {
                     setStatus("Stockpile is exhausted. Calculating players' scores now.");
                     isContinue = false;
                 }
 
                 nextPlayer = (nextPlayer + 1) % nbPlayers;
-            }
-
-            if (isRummyDeclared) {
-                // Validate the declaration
-                Hand declarerHand = hands[rummyDeclarer];
-                boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
-                if (!allMelded) {
-                    setStatus("Invalid Rummy declaration - not all cards form melds");
-                    isRummyDeclared = false;
-                    rummyDeclarer = -1;
-                    isContinue = true; // Continue the game
-                }
-                // If valid, isContinue is already false from the RUMMY action
             }
         }
         // Calculate scores
@@ -772,38 +788,53 @@ public class Rummy extends CardGame {
     }
 
     private void calculateRoundScores() {
+        System.out.println("\n========== CALCULATING ROUND SCORES ==========");
+        System.out.println("isRummyDeclared: " + isRummyDeclared);
+        System.out.println("rummyDeclarer: " + rummyDeclarer);
+
         // Analyze both players' hands
         MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[nbPlayers];
 
         for (int i = 0; i < nbPlayers; i++) {
             analyses[i] = MeldDetector.findBestMelds(hands[i]);
+            System.out.println("Player " + i + " has " + hands[i].getNumberOfCards() + " cards");
+            System.out.println("  Melds: " + analyses[i].getMelds().size());
+            System.out.println("  Deadwood value: " + analyses[i].getDeadwoodValue());
         }
 
         // Determine winner and award points
         if (isRummyDeclared && rummyDeclarer != -1) {
-            // Scenario 1: Rummy declared successfully
+            System.out.println("SCENARIO: Rummy declared by Player " + rummyDeclarer);
             int opponent = (rummyDeclarer + 1) % nbPlayers;
             int pointsEarned = analyses[opponent].getDeadwoodValue();
             scores[rummyDeclarer] += pointsEarned;
             roundWinner = rummyDeclarer;
+            System.out.println("Points earned: " + pointsEarned);
+            System.out.println("Player " + rummyDeclarer + " new score: " + scores[rummyDeclarer]);
             setStatus("Player " + rummyDeclarer + " wins with Rummy! +" + pointsEarned + " points");
         } else {
-            // Scenario 2: Stockpile exhausted
+            System.out.println("SCENARIO: Stockpile exhausted");
             int deadwood0 = analyses[0].getDeadwoodValue();
             int deadwood1 = analyses[1].getDeadwoodValue();
 
             if (deadwood0 < deadwood1) {
                 scores[0] += deadwood1;
                 roundWinner = 0;
+                System.out.println("Player 0 wins with " + deadwood1 + " points");
                 setStatus("Player 0 wins! +" + deadwood1 + " points");
             } else if (deadwood1 < deadwood0) {
                 scores[1] += deadwood0;
                 roundWinner = 1;
+                System.out.println("Player 1 wins with " + deadwood0 + " points");
                 setStatus("Player 1 wins! +" + deadwood0 + " points");
             } else {
+                System.out.println("Draw - no points");
                 setStatus("Draw - no points awarded");
             }
         }
+
+        System.out.println("Final scores: P0=" + scores[0] + ", P1=" + scores[1]);
+        System.out.println("==============================================\n");
 
         // Reset flags
         isRummyDeclared = false;
