@@ -430,14 +430,23 @@ public class Rummy extends CardGame {
 
     private void addEndOfRoundToLog() {
         logResult.append("\n");
-        // Need to change code here
         logResult.append("Round" + currentRound +  " End:P0-" + scores[0] + ",P1-" + scores[1]);
     }
 
     private void addEndOfGameToLog(List<Integer> winners) {
         logResult.append("\n");
-        // Need to change code here
-        logResult.append("Game End:P0");
+        if (winners.size() == 1) {
+            logResult.append("Game End:P" + winners.get(0));
+        } else {
+            // Multiple winners (draw)
+            logResult.append("Game End:");
+            for (int i = 0; i < winners.size(); i++) {
+                logResult.append("P" + winners.get(i));
+                if (i < winners.size() - 1) {
+                    logResult.append(",");
+                }
+            }
+        }
     }
 
     private Card dealTopCard(Hand hand) {
