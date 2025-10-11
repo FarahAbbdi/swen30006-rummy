@@ -972,7 +972,7 @@ public class Rummy extends CardGame {
                     setStatus("Knock tie - no points");
                 }
             } else {
-                // Stock exhausted (Gin mode): lower deadwood wins opponent’s total
+                // Stock exhausted (Gin mode): lower deadwood wins opponent's total
                 int d0 = analyses[0].getDeadwoodValue();
                 int d1 = analyses[1].getDeadwoodValue();
                 if (d0 < d1) { scores[0] += d1; roundWinner = 0; setStatus("Stock exhausted: P0 wins +" + d1); }
