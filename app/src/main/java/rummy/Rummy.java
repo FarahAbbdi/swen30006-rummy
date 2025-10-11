@@ -969,7 +969,7 @@ public class Rummy extends CardGame {
                     roundWinner = opp;
                     setStatus("Knock undercut by P" + opp + " +" + diff + " points");
                 } else {
-                    setStatus("Knock tie — no points");
+                    setStatus("Knock tie - no points");
                 }
             } else {
                 // Stock exhausted (Gin mode): lower deadwood wins opponent’s total
@@ -977,7 +977,7 @@ public class Rummy extends CardGame {
                 int d1 = analyses[1].getDeadwoodValue();
                 if (d0 < d1) { scores[0] += d1; roundWinner = 0; setStatus("Stock exhausted: P0 wins +" + d1); }
                 else if (d1 < d0) { scores[1] += d0; roundWinner = 1; setStatus("Stock exhausted: P1 wins +" + d0); }
-                else { setStatus("Stock exhausted: tie — no points"); }
+                else { setStatus("Stock exhausted: tie - no points"); }
             }
         } else {
             // Classic mode scoring (unchanged)
@@ -992,7 +992,7 @@ public class Rummy extends CardGame {
                 int d1 = analyses[1].getDeadwoodValue();
                 if (d0 < d1) { scores[0] += d1; roundWinner = 0; setStatus("Stock exhausted: P0 wins +" + d1); }
                 else if (d1 < d0) { scores[1] += d0; roundWinner = 1; setStatus("Stock exhausted: P1 wins +" + d0); }
-                else { setStatus("Stock exhausted: tie — no points"); }
+                else { setStatus("Stock exhausted: tie - no points"); }
             }
         }
 
