@@ -4,6 +4,7 @@ import ch.aplu.jcardgame.Card;
 import ch.aplu.jcardgame.Hand;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Basic structure + card value calculation
@@ -329,6 +330,34 @@ public class MeldDetector {
      */
     public static boolean allCardsFormedIntoMelds(Hand hand) {
         MeldAnalysis analysis = findBestMelds(hand);
-        return analysis.getDeadwood().isEmpty();
+
+        System.out.println("  MELD ANALYSIS DEBUG:");
+        System.out.println("    Total cards: " + hand.getNumberOfCards());
+        System.out.println("    Melded cards: " + analysis.getTotalMeldedCards());
+        System.out.println("    Deadwood cards: " + analysis.getDeadwood().size());
+        System.out.println("    Deadwood value: " + analysis.getDeadwoodValue());
+
+        for (int i = 0; i < analysis.getMelds().size(); i++) {
+            Meld meld = analysis.getMelds().get(i);
+            System.out.println("    Meld " + i + " (" + meld.getType() + "): " +
+                    meld.getCards().stream().map(c -> {
+                        Rank rank = (Rank) c.getRank();
+                        Suit suit = (Suit) c.getSuit();
+                        return rank.getCardLog() + suit.getSuitShortHand();
+                    }).collect(Collectors.joining(",")));
+        }
+
+        if (!analysis.getDeadwood().isEmpty()) {
+            System.out.println("    Deadwood: " +
+                    analysis.getDeadwood().stream().map(c -> {
+                        Rank rank = (Rank) c.getRank();
+                        Suit suit = (Suit) c.getSuit();
+                        return rank.getCardLog() + suit.getSuitShortHand();
+                    }).collect(Collectors.joining(",")));
+        }
+
+        boolean result = analysis.getDeadwood().isEmpty();
+        System.out.println("    Can declare RUMMY: " + result);
+        return result;
     }
 }

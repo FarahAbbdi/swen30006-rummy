@@ -467,10 +467,19 @@ public class Rummy extends CardGame {
     }
 
     private void discardCardFromHand(Card card, Hand hand) {
-        card.removeFromHand(false);
+        System.out.println("DISCARD DEBUG: Removing " + cardDescriptionForLog(card));
+        System.out.println("  Hand size before: " + hand.getNumberOfCards());
+
+        // Use hand.remove() instead of card.removeFromHand()
+        boolean removed = hand.remove(card, false);
+        System.out.println("  Successfully removed: " + removed);
+        System.out.println("  Hand size after removal: " + hand.getNumberOfCards());
+
         discard.insert(card, false);
         discard.draw();
         hand.draw();
+
+        System.out.println("  Final hand size: " + hand.getNumberOfCards());
     }
 
     private void waitingForHumanToSelectCard(Hand hand) {
@@ -547,7 +556,47 @@ public class Rummy extends CardGame {
                 addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
             }
         } else {
-            // SMART COMPUTER PLAYER LOGIC
+            // SMART COMPUTER PLAYER LOGIC WITH DEBUGGING
+            System.out.println("\n=== P0 SMART COMPUTER TURN START ===");
+            System.out.println("Initial hand (" + hand.getNumberOfCards() + " cards):");
+            for (Card c : hand.getCardList()) {
+                System.out.println("  " + cardDescriptionForLog(c));
+            }
+
+            // Check if computer_smart property is enabled
+            boolean isSmartEnabled = Boolean.parseBoolean(properties.getProperty("computer_smart", "false"));
+            System.out.println("Computer smart enabled: " + isSmartEnabled);
+
+            if (!isSmartEnabled) {
+                System.out.println("Using random logic instead of smart logic");
+                // Fall back to original random logic
+                if (!discard.isEmpty()) {
+                    boolean isPickingDiscard = new Random().nextBoolean();
+                    if (isPickingDiscard) {
+                        setStatusText("Player " + nextPlayer + " is picking a card from discard pile...");
+                        drawnCard = processTopCardFromPile(discard, hand);
+                    } else {
+                        setStatusText("Player " + nextPlayer + " is picking a card from stockpile...");
+                        drawnCard = processTopCardFromPile(pack, hands[nextPlayer]);
+                    }
+                } else {
+                    setStatusText("Player " + nextPlayer + " is picking a card from stockpile...");
+                    drawnCard = processTopCardFromPile(pack, hands[nextPlayer]);
+                }
+                selected = getRandomCard(hands[nextPlayer]);
+                discardCardFromHand(selected, hand);
+
+                // Check if computer can declare Rummy
+                if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+                    isRummyDeclared = true;
+                    rummyDeclarer = nextPlayer;
+                    addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
+                } else {
+                    addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+                }
+                return;
+            }
+
             setStatusText("Player " + nextPlayer + " thinking...");
 
             Card cardToKeep = null;
@@ -556,15 +605,28 @@ public class Rummy extends CardGame {
             // Step 1: Evaluate discard pile top card
             if (!discard.isEmpty()) {
                 Card discardTop = dealTopCard(discard);
+                System.out.println("Discard pile top card: " + cardDescriptionForLog(discardTop));
+
                 SmartComputerPlayer.EvaluationResult discardEval =
                         SmartComputerPlayer.evaluateCard(discardTop, hand, deck);
+
+                System.out.println("Discard evaluation satisfies criteria: " + discardEval.satisfiesAnyCriterion());
+                System.out.println("  Criterion 1 (immediate meld): " + discardEval.criterion1);
+                System.out.println("  Criterion 2 (rank gap): " + discardEval.criterion2);
+                System.out.println("  Criterion 3 (max suit): " + discardEval.criterion3);
+                System.out.println("  Criterion 4 (deadwood rank): " + discardEval.criterion4);
 
                 if (discardEval.satisfiesAnyCriterion()) {
                     setStatusText("Player " + nextPlayer + " is picking from discard pile...");
                     drawnCard = processTopCardFromPile(discard, hand);
                     cardToKeep = drawnCard;
                     keptCard = true;
+                    System.out.println("P0 PICKED UP from discard: " + cardDescriptionForLog(drawnCard));
+                } else {
+                    System.out.println("P0 REJECTED discard pile card");
                 }
+            } else {
+                System.out.println("Discard pile is empty");
             }
 
             // Step 2: If didn't take discard, try stockpile
@@ -572,35 +634,67 @@ public class Rummy extends CardGame {
                 setStatusText("Player " + nextPlayer + " is picking from stockpile...");
                 Card stockpileCard = processTopCardFromPile(pack, hand);
                 drawnCard = stockpileCard;
+                System.out.println("P0 drew from stockpile: " + cardDescriptionForLog(drawnCard));
 
                 SmartComputerPlayer.EvaluationResult stockpileEval =
                         SmartComputerPlayer.evaluateCard(stockpileCard, hand, deck);
 
+                System.out.println("Stockpile evaluation satisfies criteria: " + stockpileEval.satisfiesAnyCriterion());
+                System.out.println("  Criterion 1 (immediate meld): " + stockpileEval.criterion1);
+                System.out.println("  Criterion 2 (rank gap): " + stockpileEval.criterion2);
+                System.out.println("  Criterion 3 (max suit): " + stockpileEval.criterion3);
+                System.out.println("  Criterion 4 (deadwood rank): " + stockpileEval.criterion4);
+
                 if (stockpileEval.satisfiesAnyCriterion()) {
                     cardToKeep = stockpileCard;
                     keptCard = true;
+                    System.out.println("P0 KEEPING stockpile card");
+                } else {
+                    System.out.println("P0 will DISCARD stockpile card");
                 }
+            }
+
+            // DEBUG: Print hand after drawing
+            System.out.println("Hand after drawing (" + hand.getNumberOfCards() + " cards):");
+            for (Card c : hand.getCardList()) {
+                System.out.println("  " + cardDescriptionForLog(c));
             }
 
             // Step 3: Select card to discard (always required to get back to 13 cards)
             if (keptCard) {
                 selected = SmartComputerPlayer.selectCardToDiscard(hand, deck);
+                System.out.println("Smart discard selection: " + cardDescriptionForLog(selected));
             } else {
                 // Discard the drawn card
                 selected = drawnCard;
+                System.out.println("Discarding drawn card: " + cardDescriptionForLog(selected));
             }
 
             discardCardFromHand(selected, hand);
 
+            // DEBUG: Print hand after discarding
+            System.out.println("Hand after discarding (" + hand.getNumberOfCards() + " cards):");
+            for (Card c : hand.getCardList()) {
+                System.out.println("  " + cardDescriptionForLog(c));
+            }
+
             // Step 4: Check if we can declare RUMMY (now with exactly 13 cards)
-            if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+            System.out.println("Checking for RUMMY declaration...");
+            boolean canDeclareRummy = MeldDetector.allCardsFormedIntoMelds(hand);
+            System.out.println("Can declare RUMMY? " + canDeclareRummy);
+
+            if (canDeclareRummy) {
                 setStatusText("Player " + nextPlayer + " is declaring rummy...");
                 isRummyDeclared = true;
                 rummyDeclarer = nextPlayer;
+                System.out.println("P0 DECLARING RUMMY!");
                 addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
             } else {
+                System.out.println("P0 NOT declaring RUMMY - continuing game");
                 addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
             }
+
+            System.out.println("=== P0 SMART COMPUTER TURN END ===\n");
         }
     }
 

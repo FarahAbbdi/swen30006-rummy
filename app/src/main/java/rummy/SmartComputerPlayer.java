@@ -7,10 +7,10 @@ import java.util.stream.Collectors;
 public class SmartComputerPlayer {
 
     public static class EvaluationResult {
-        private final boolean criterion1; // Immediate meld form
-        private final boolean criterion2; // Decrease minimum rank gap
-        private final boolean criterion3; // Increase max cards of suit
-        private final boolean criterion4; // Make suit count > 1 in deadwood
+        public final boolean criterion1; // Immediate meld form
+        public final boolean criterion2; // Decrease minimum rank gap
+        public final boolean criterion3; // Increase max cards of suit
+        public final boolean criterion4; // Make suit count > 1 in deadwood
 
         public EvaluationResult(boolean c1, boolean c2, boolean c3, boolean c4) {
             this.criterion1 = c1;
