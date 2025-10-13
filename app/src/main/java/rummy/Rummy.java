@@ -688,7 +688,7 @@ public class Rummy extends CardGame {
                 isRummyDeclared = true;
                 rummyDeclarer = nextPlayer;
                 System.out.println("P0 DECLARING RUMMY!");
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
+                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
             } else {
                 System.out.println("P0 NOT declaring RUMMY - continuing game");
                 addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
