@@ -8,7 +8,6 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// first commit by dimitri
 
 @SuppressWarnings("serial")
 public class Rummy extends CardGame {
@@ -268,12 +267,6 @@ public class Rummy extends CardGame {
     public static Card randomCard(ArrayList<Card> list) {
         int x = random.nextInt(list.size());
         return list.get(x);
-    }
-
-    private String getCardName(Card card) {
-        Suit suit = (Suit) card.getSuit();
-        Rank rank = (Rank) card.getRank();
-        return rank.getShortHandValue() + suit.getSuitShortHand();
     }
 
     private Rank getRankFromString(String cardName) {

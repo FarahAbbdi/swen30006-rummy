@@ -213,27 +213,4 @@ public class SmartComputerPlayer {
 
         return highestValueCard;
     }
-
-    private static Card selectBestDiscardFromTiedCards(List<Card> tiedCards, List<Card> allDeadwood) {
-        // Count suit frequencies in deadwood
-        Map<Suit, Integer> suitFrequencies = new HashMap<>();
-        for (Card c : allDeadwood) {
-            Suit suit = (Suit) c.getSuit();
-            suitFrequencies.put(suit, suitFrequencies.getOrDefault(suit, 0) + 1);
-        }
-
-        // Find minimum frequency
-        int minFreq = tiedCards.stream()
-                .mapToInt(c -> suitFrequencies.get((Suit) c.getSuit()))
-                .min().orElse(Integer.MAX_VALUE);
-
-        List<Card> leastFrequentSuitCards = tiedCards.stream()
-                .filter(c -> suitFrequencies.get((Suit) c.getSuit()) == minFreq)
-                .collect(Collectors.toList());
-
-        // Among least frequent, select highest value
-        return leastFrequentSuitCards.stream()
-                .max(Comparator.comparingInt(MeldDetector::getCardValue))
-                .orElse(tiedCards.get(0));
-    }
 }
