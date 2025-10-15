@@ -737,7 +737,6 @@ public class Rummy extends CardGame {
         boolean isContinue = true;
         setupPlayerAutoMovements();
         while (isContinue) {
-            i++;
             addTurnInfoToLog(i);
             for (int j = 0; j < nbPlayers; j++) {
                 Hand hand = hands[nextPlayer];
@@ -834,6 +833,7 @@ public class Rummy extends CardGame {
 
                 nextPlayer = (nextPlayer + 1) % nbPlayers;
             }
+            i++;
         }
         // Calculate scores
         calculateRoundScores();

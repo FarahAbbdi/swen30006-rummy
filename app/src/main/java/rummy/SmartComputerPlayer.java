@@ -41,30 +41,34 @@ public class SmartComputerPlayer {
         MeldDetector.MeldAnalysis originalAnalysis = MeldDetector.findBestMelds(hand);
         MeldDetector.MeldAnalysis newAnalysis = MeldDetector.findBestMelds(tempHand);
 
-        return newAnalysis.getTotalMeldedCards() > originalAnalysis.getTotalMeldedCards();
+        boolean result = newAnalysis.getTotalMeldedCards() > originalAnalysis.getTotalMeldedCards();
+        System.out.printf("[Criterion 1] Drawn: %s | MeldedCards before: %d, after: %d -> %b\n",
+                drawnCard, originalAnalysis.getTotalMeldedCards(), newAnalysis.getTotalMeldedCards(), result);
+        return result;
     }
 
     // Criterion 2: Decrease minimum rank gap
     private static boolean evaluateCriterion2(Card drawnCard, Hand hand, Deck deck) {
         Suit drawnSuit = (Suit) drawnCard.getSuit();
-        int drawnRank = ((Rank) drawnCard.getRank()).getShortHandValue();
-
-        List<Card> sameSuitCards = hand.getCardList().stream()
+        List<Card> handSuitCards = hand.getCardList().stream()
                 .filter(c -> ((Suit) c.getSuit()) == drawnSuit)
                 .collect(Collectors.toList());
 
-        if (sameSuitCards.isEmpty()) {
-            return true; // Only one card in suit
+        if (handSuitCards.isEmpty()) {
+            System.out.printf("[Criterion 2] Drawn: %s | Only card in suit (TRUE)\n", drawnCard);
+            return true;
         }
+        // Clone and add drawnCard for the "after" check
+        List<Card> withDrawn = new ArrayList<>(handSuitCards);
+        withDrawn.add(drawnCard);
 
-        // Calculate minimum gap before adding card
-        int originalMinGap = calculateMinimumRankGap(sameSuitCards);
+        int originalMinGap = calculateMinimumRankGap(handSuitCards);
+        int newMinGap = calculateMinimumRankGap(withDrawn);
 
-        // Add drawn card and recalculate
-        sameSuitCards.add(drawnCard);
-        int newMinGap = calculateMinimumRankGap(sameSuitCards);
-
-        return newMinGap < originalMinGap;
+        boolean result = newMinGap < originalMinGap;
+        System.out.printf("[Criterion 2] Drawn: %s | MinGap before: %d, after: %d -> %b\n",
+                drawnCard, originalMinGap, newMinGap, result);
+        return result;
     }
 
     private static int calculateMinimumRankGap(List<Card> sameSuitCards) {
@@ -96,7 +100,10 @@ public class SmartComputerPlayer {
         int currentMaxCount = suitCounts.values().stream().mapToInt(Integer::intValue).max().orElse(0);
         int drawnSuitCount = suitCounts.getOrDefault(drawnSuit, 0) + 1;
 
-        return drawnSuitCount > currentMaxCount;
+        boolean result = drawnSuitCount > currentMaxCount;
+        System.out.printf("[Criterion 3] Drawn: %s | Suit: %s | Count before: %d, after: %d -> %b\n",
+                drawnCard, drawnSuit, suitCounts.getOrDefault(drawnSuit, 0), drawnSuitCount, result);
+        return result;
     }
 
     // Criterion 4: Make suit count > 1 in deadwood
@@ -119,7 +126,10 @@ public class SmartComputerPlayer {
         }
 
         Rank drawnRank = (Rank) drawnCard.getRank();
-        return rankCounts.getOrDefault(drawnRank, 0) > 1;
+        boolean result = rankCounts.getOrDefault(drawnRank, 0) > 1;
+        System.out.printf("[Criterion 4] Drawn: %s | Deadwood same rank count: %d -> %b\n",
+                drawnCard, rankCounts.getOrDefault(drawnRank, 0), result);
+        return result;
     }
 
     public static EvaluationResult evaluateCard(Card drawnCard, Hand hand, Deck deck) {
@@ -136,7 +146,7 @@ public class SmartComputerPlayer {
         List<Card> deadwood = analysis.getDeadwood();
 
         if (deadwood.isEmpty()) {
-            // Shouldn't happen, but fallback
+            System.out.println("[Discard Selection] No deadwood, fallback to first card in hand.");
             return hand.getCardList().get(0);
         }
 
@@ -150,8 +160,12 @@ public class SmartComputerPlayer {
                     tempHand.insert(c, false);
                 }
             }
+            EvaluationResult eval = evaluateCard(card, tempHand, deck);
+            evaluations.put(card, eval);
 
-            evaluations.put(card, evaluateCard(card, tempHand, deck));
+            // Debug output for the evaluation
+            System.out.printf("[Discard Evaluation] Card: %s | Criteria Satisfied: %d | C1: %b | C2: %b | C3: %b | C4: %b\n",
+                    card, eval.getCriteriaCount(), eval.criterion1, eval.criterion2, eval.criterion3, eval.criterion4);
         }
 
         // Find cards with least criteria satisfied
@@ -163,12 +177,41 @@ public class SmartComputerPlayer {
                 .filter(c -> evaluations.get(c).getCriteriaCount() == minCriteria)
                 .collect(Collectors.toList());
 
+        // Debug output for tie-breaking candidates
+        System.out.print("[Discard Tie-break] Cards with least criteria: ");
+        leastCriteriaCards.forEach(c -> System.out.print(c + " "));
+        System.out.println();
+
         if (leastCriteriaCards.size() == 1) {
+            System.out.println("[Discard Selection] Only one card with least criteria: " + leastCriteriaCards.get(0));
             return leastCriteriaCards.get(0);
         }
 
-        // Tie-breaking: least frequent suit and highest value
-        return selectBestDiscardFromTiedCards(leastCriteriaCards, deadwood);
+        // Tie-breaking: least frequent suit
+        Map<Suit, Long> suitFrequencies = deadwood.stream()
+                .collect(Collectors.groupingBy(c -> (Suit) c.getSuit(), Collectors.counting()));
+
+        long minFreq = leastCriteriaCards.stream()
+                .mapToLong(c -> suitFrequencies.get((Suit) c.getSuit()))
+                .min().orElse(Long.MAX_VALUE);
+
+        List<Card> leastFrequentSuitCards = leastCriteriaCards.stream()
+                .filter(c -> suitFrequencies.get((Suit) c.getSuit()) == minFreq)
+                .collect(Collectors.toList());
+
+        // Debug output for suit frequency tie-breaking
+        System.out.print("[Discard Tie-break] Cards with least frequent suit: ");
+        leastFrequentSuitCards.forEach(c -> System.out.print(c + " "));
+        System.out.println();
+
+        // Highest card value among the tied cards
+        Card highestValueCard = leastFrequentSuitCards.stream()
+                .max(Comparator.comparingInt(MeldDetector::getCardValue))
+                .orElse(leastFrequentSuitCards.get(0));
+
+        System.out.println("[Discard Selection] Card selected (highest value among tie): " + highestValueCard);
+
+        return highestValueCard;
     }
 
     private static Card selectBestDiscardFromTiedCards(List<Card> tiedCards, List<Card> allDeadwood) {
