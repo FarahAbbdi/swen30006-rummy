@@ -591,14 +591,14 @@ public class Rummy extends CardGame {
             isKnockDeclared = false;
 
             if (!discard.isEmpty()) {
-                setStatus("Player " + nextPlayer + " is playing. Double click a pile to draw");
+                setStatus("Player " + nextPlayer + " is playing. Please double click on a pile to draw");
                 waitingForHumanToSelectPile(pack, discard);
             } else {
-                setStatus("Player " + nextPlayer + " is playing first. Double click the stockpile to draw");
+                setStatus("Player " + nextPlayer + " is playing first. Please double click on the stockpile to draw");
                 waitingForHumanToSelectPile(pack, null);
             }
             drawCardToHand(hand);
-            setStatus("Player " + nextPlayer + ": double click a card in hand to discard");
+            setStatus("Player " + nextPlayer + " is playing. Please double click on a card in hand to select");
 
             waitingForHumanToSelectCard(hand);
             discardCardFromHand(selected, hand);
@@ -1002,11 +1002,12 @@ public class Rummy extends CardGame {
 
                 // Advance to next player
                 nextPlayer = (nextPlayer + 1) % nbPlayers;
-            } // end for (players loop)
-        } // end while (isContinue)
-
-        // Calculate scores and finish round
+            }
+            i++;
+        }
+        // Calculate scores
         calculateRoundScores();
+
         addEndOfRoundToLog();
         return false;
     }
