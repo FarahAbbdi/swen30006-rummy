@@ -11,14 +11,27 @@ import java.util.stream.Collectors;
 
 @SuppressWarnings("serial")
 public class Rummy extends CardGame {
+    // ===== Classic Rummy state =====
     private boolean isRummyDeclared = false;
     private int rummyDeclarer = -1;
+
+    // ===== Gin Rummy state =====
+    private boolean isGinDeclared = false;
+    private int ginDeclarer = -1;
+    private boolean isKnockDeclared = false;
+    private int knocker = -1;
+    private final int knockThreshold; // default 7 (spec)
+    private static final int GIN_BONUS = 25;
+    private static final int UNDERCUT_BONUS = 25;
+    private boolean stockExhaustedThisRound = false;
+    // ===== Mode =====
+    private final boolean isGinMode;
+
     static public final int seed = 30008;
     static final Random random = new Random(seed);
     private final Properties properties;
     private final StringBuilder logResult = new StringBuilder();
     private final List<List<String>> playerAutoMovements = new ArrayList<>();
-
 
     private final String version = "1.0";
     public final int nbPlayers = 2;
@@ -37,13 +50,24 @@ public class Rummy extends CardGame {
     private Hand pack;
     private Hand discard;
 
-    private final GGButton rummyActor = new GGButton("sprites/rummy.gif", false);
-    private final Location rummyLocation = new Location(80, 650);
+    // === Buttons ===
     private final GGButton endTurnActor = new GGButton("sprites/end.gif", false);
     private final Location endTurnLocation = new Location(80, 610);
+
+    // Classic Rummy button
+    private final GGButton rummyActor = new GGButton("sprites/rummy.gif", false);
+    private final Location rummyLocation = new Location(80, 650);
+
+    // Gin & Knock buttons (aligned and spaced)
+    private final GGButton ginActor   = new GGButton("sprites/gin.gif", false);
+    private final GGButton knockActor = new GGButton("sprites/knock.gif", false);
+
+    // Keep them aligned horizontally and same height as Rummy
+    private final Location ginLocation   = new Location(80, 570);
+    private final Location knockLocation = new Location(80, 650);  // shifted right
+
     private TextActor packNameActor;
     private TextActor discardNameActor;
-
 
     private final Location packLocation = new Location(75, 350);
     private final Location discardLocation = new Location(625, 350);
@@ -70,7 +94,6 @@ public class Rummy extends CardGame {
     }
     private final TextActor[] scoreActors = {null, null};
     private final TextActor[] pileNameActors = {null, null, null, null};
-
 
     Font bigFont = new Font("Arial", Font.BOLD, 36);
     Font smallFont = new Font("Arial", Font.BOLD, 18);
@@ -99,13 +122,9 @@ public class Rummy extends CardGame {
     private Card drawnCard;
     private boolean isEndingTurn = false;
 
-    /**
-     * Score Section
-     */
-
+    // ===== Score UI =====
     private void initScore() {
         for (int i = 0; i < nbPlayers; i++) {
-            // scores[i] = 0;
             String text = "[P" + i + ": " + scores[i] + "]";
             scoreActors[i] = new TextActor(text, Color.WHITE, bgColor, bigFont);
             addActor(scoreActors[i], scoreLocations[i]);
@@ -130,6 +149,7 @@ public class Rummy extends CardGame {
         Arrays.fill(scores, 0);
     }
 
+    // ===== Piles =====
     private void setupPiles() {
         discard = new Hand(deck);
         RowLayout discardLayout = new RowLayout(discardLocation, pileWidth);
@@ -178,14 +198,16 @@ public class Rummy extends CardGame {
             if (suit1.ordinal() - suit2.ordinal() != 0) {
                 return suit1.ordinal() - suit2.ordinal();
             }
-
             return rank1.getShortHandValue() - rank2.getShortHandValue();
         };
-
         cards.sort(cardComparator);
     }
 
     private void initRound() {
+        // --- RESET auto scripting state for the new round ---
+        playerAutoMovements.clear();
+        Arrays.fill(autoIndexHands, 0);
+
         hands = new Hand[nbPlayers];
         for (int i = 0; i < nbPlayers; i++) {
             hands[i] = new Hand(deck);
@@ -228,42 +250,85 @@ public class Rummy extends CardGame {
     private void setupButtons() {
         addActor(endTurnActor, endTurnLocation);
         endTurnActor.addButtonListener(new GGButtonListener() {
-            @Override
-            public void buttonPressed(GGButton ggButton) {
-                isEndingTurn = true;
-            }
-
-            @Override
-            public void buttonReleased(GGButton ggButton) {
-
-            }
-
-            @Override
-            public void buttonClicked(GGButton ggButton) {
-
-            }
+            @Override public void buttonPressed(GGButton ggButton) { isEndingTurn = true; }
+            @Override public void buttonReleased(GGButton ggButton) { }
+            @Override public void buttonClicked(GGButton ggButton) { }
         });
-        addActor(rummyActor, rummyLocation);
-        rummyActor.addButtonListener(new GGButtonListener() {
-            @Override
-            public void buttonPressed(GGButton ggButton) {
-                System.out.println("rummy button pressed");
-                isRummyDeclared = true;
-                rummyDeclarer = HUMAN_PLAYER_INDEX;
-                isEndingTurn = true;
-            }
 
-            @Override
-            public void buttonReleased(GGButton ggButton) {
-            }
+        if (isGinMode) {
+            // Gin Button
+            addActor(ginActor, ginLocation);
+            ginActor.addButtonListener(new GGButtonListener() {
+                @Override public void buttonPressed(GGButton ggButton) {
+                    isGinDeclared = true;
+                    ginDeclarer   = HUMAN_PLAYER_INDEX;
+                    isEndingTurn  = true;
+                }
+                @Override public void buttonReleased(GGButton ggButton) { }
+                @Override public void buttonClicked(GGButton ggButton) { }
+            });
 
-            @Override
-            public void buttonClicked(GGButton ggButton) {
-            }
-        });
+            // Knock Button
+            addActor(knockActor, knockLocation);
+            knockActor.addButtonListener(new GGButtonListener() {
+                @Override public void buttonPressed(GGButton ggButton) {
+                    // Validate knock against threshold for HUMAN
+                    MeldDetector.MeldAnalysis a = MeldDetector.findBestMelds(hands[HUMAN_PLAYER_INDEX]);
+                    int dw = a.getDeadwoodValue();
+                    if (dw <= knockThreshold) {
+                        isKnockDeclared = true;
+                        knocker = HUMAN_PLAYER_INDEX;
+                    } else {
+                        // Reject knock, keep the round going
+                        isKnockDeclared = false;
+                        knocker = -1;
+                        setStatus("Invalid Knock: deadwood " + dw + " > threshold " + knockThreshold);
+                    }
+                    // End human decision window either way
+                    isEndingTurn = true;
+                }
+                @Override public void buttonReleased(GGButton ggButton) { }
+                @Override public void buttonClicked(GGButton ggButton) { }
+            });
+
+            // Hide Rummy button in Gin mode
+            rummyActor.setMouseTouchEnabled(false);
+            rummyActor.hide();
+
+        } else {
+            // Classic Rummy button
+            addActor(rummyActor, rummyLocation);
+            rummyActor.addButtonListener(new GGButtonListener() {
+                @Override public void buttonPressed(GGButton ggButton) {
+                    isRummyDeclared = true;
+                    rummyDeclarer   = HUMAN_PLAYER_INDEX;
+                    isEndingTurn    = true;
+                }
+                @Override public void buttonReleased(GGButton ggButton) { }
+                @Override public void buttonClicked(GGButton ggButton) { }
+            });
+
+            // Hide Gin/Knock in classic mode
+            ginActor.hide();
+            knockActor.hide();
+        }
     }
 
-    // return random Card from ArrayList
+    /** Enable/disable during the human decision window */
+    private void enableRummyButton(boolean enable) {
+        if (!isGinMode && rummyActor != null) {
+            rummyActor.setMouseTouchEnabled(enable);
+        }
+    }
+
+    private void enableGinButtons(boolean enable) {
+        if (isGinMode) {
+            if (ginActor   != null) ginActor.setMouseTouchEnabled(enable);
+            if (knockActor != null) knockActor.setMouseTouchEnabled(enable);
+        }
+    }
+
+    // ===== Helpers =====
     public static Card randomCard(ArrayList<Card> list) {
         int x = random.nextInt(list.size());
         return list.get(x);
@@ -449,7 +514,6 @@ public class Rummy extends CardGame {
 
     private Card processTopCardFromPile(Hand pile, Hand hand) {
         delay(thinkingTime);
-
         Card card = dealTopCard(pile);
         pile.remove(card, false);
         pile.draw();
@@ -523,31 +587,45 @@ public class Rummy extends CardGame {
     private void processNonAutoPlaying(int nextPlayer, Hand hand) {
         if (HUMAN_PLAYER_INDEX == nextPlayer) {
             isRummyDeclared = false;
+            isGinDeclared = false;
+            isKnockDeclared = false;
 
             if (!discard.isEmpty()) {
-                setStatus("Player " + nextPlayer + " is playing. Please double click on a pile to draw");
+                setStatus("Player " + nextPlayer + " is playing. Double click a pile to draw");
                 waitingForHumanToSelectPile(pack, discard);
             } else {
-                setStatus("Player " + nextPlayer + " is playing first. Please double click on the stockpile to draw");
+                setStatus("Player " + nextPlayer + " is playing first. Double click the stockpile to draw");
                 waitingForHumanToSelectPile(pack, null);
             }
             drawCardToHand(hand);
-            setStatus("Player " + nextPlayer + " is playing. Please double click on a card in hand to select");
+            setStatus("Player " + nextPlayer + ": double click a card in hand to discard");
 
             waitingForHumanToSelectCard(hand);
             discardCardFromHand(selected, hand);
 
-            setStatus("Player " + nextPlayer + " is playing. Please click on end turn of declare rummy/gin/knock");
-            enableRummyButton(true);
-            waitingForHumanToEndTurn();
-            enableRummyButton(false);
-            addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
-
-            if (isRummyDeclared) {
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
+            // Decision window
+            if (isGinMode) {
+                setStatus("Click End Turn, or declare Gin/Knock");
+                enableGinButtons(true);
+                waitingForHumanToEndTurn();
+                enableGinButtons(false);
             } else {
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+                setStatus("Click End Turn or declare Rummy");
+                enableRummyButton(true);
+                waitingForHumanToEndTurn();
+                enableRummyButton(false);
             }
+
+            // Log human action
+            String action = null;
+            if (isGinMode) {
+                if (isGinDeclared) action = "GIN";
+                else if (isKnockDeclared) action = "KNOCK";
+            } else if (isRummyDeclared) {
+                action = "RUMMY";
+            }
+            addCardPlayedToLog(nextPlayer, selected, drawnCard, action);
+
         } else {
             // SMART COMPUTER PLAYER LOGIC WITH DEBUGGING
             System.out.println("\n=== P0 SMART COMPUTER TURN START ===");
@@ -688,6 +766,33 @@ public class Rummy extends CardGame {
             }
 
             System.out.println("=== P0 SMART COMPUTER TURN END ===\n");
+            if (isGinMode) {
+                // Try Gin
+                if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+                    isGinDeclared = true;
+                    ginDeclarer = nextPlayer;
+                    addCardPlayedToLog(nextPlayer, selected, drawnCard, "GIN");
+                } else {
+                    // Try Knock (deadwood <= threshold)
+                    MeldDetector.MeldAnalysis a = MeldDetector.findBestMelds(hand);
+                    if (a.getDeadwoodValue() <= knockThreshold) {
+                        isKnockDeclared = true;
+                        knocker = nextPlayer;
+                        addCardPlayedToLog(nextPlayer, selected, drawnCard, "KNOCK");
+                    } else {
+                        addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+                    }
+                }
+            } else {
+                // Classic: Rummy if all melds (13)
+                if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+                    isRummyDeclared = true;
+                    rummyDeclarer = nextPlayer;
+                    addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
+                } else {
+                    addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
+                }
+            }
         }
     }
 
@@ -728,28 +833,34 @@ public class Rummy extends CardGame {
         addPlayerCardsToLog();
         int i = 0;
         boolean isContinue = true;
+        stockExhaustedThisRound = false;
         setupPlayerAutoMovements();
+
         while (isContinue) {
             addTurnInfoToLog(i);
+
             for (int j = 0; j < nbPlayers; j++) {
                 Hand hand = hands[nextPlayer];
 
+                // -------- Player turn (auto or human) --------
                 if (isAuto) {
                     int nextPlayerAutoIndex = autoIndexHands[nextPlayer];
                     List<String> nextPlayerMovement = playerAutoMovements.get(nextPlayer);
                     String nextMovement = "";
                     boolean hasRunAuto = false;
+
                     if (nextPlayerMovement.size() > nextPlayerAutoIndex) {
                         nextMovement = nextPlayerMovement.get(nextPlayerAutoIndex);
                         if (!nextMovement.isEmpty()) {
                             hasRunAuto = true;
                             nextPlayerAutoIndex++;
-
                             autoIndexHands[nextPlayer] = nextPlayerAutoIndex;
+
                             setStatus("Player " + nextPlayer + " is playing");
                             List<CardAction> cardActions = getActionFromAutoMovement(nextMovement);
                             CardAction cardAction = cardActions.get(0);
                             Card card = null;
+
                             if (cardAction == CardAction.DISCARD) {
                                 card = processTopCardFromPile(discard, hand);
                                 selected = getCardElementFromAutoMovement(hand, nextMovement);
@@ -761,6 +872,7 @@ public class Rummy extends CardGame {
                             }
 
                             delay(thinkingTime);
+
                             if (cardActions.size() > 1) {
                                 CardAction lastAction = cardActions.get(1);
                                 if (lastAction == CardAction.RUMMY) {
@@ -769,21 +881,26 @@ public class Rummy extends CardGame {
                                     rummyDeclarer = nextPlayer;
                                     isContinue = false;
                                     addCardPlayedToLog(nextPlayer, selected, card, lastAction.name());
-                                    break;
+                                    break; // break inner for-loop
                                 } else if (lastAction == CardAction.GIN) {
-                                    setStatus("Player " + nextPlayer + " is ginning...");
-                                    addCardPlayedToLog(nextPlayer, selected, card, lastAction.name());
+                                    setStatus("Player " + nextPlayer + " is declaring gin...");
+                                    isGinDeclared = true;
+                                    ginDeclarer = nextPlayer;
                                     isContinue = false;
+                                    addCardPlayedToLog(nextPlayer, selected, card, "GIN");
                                     break;
                                 } else if (lastAction == CardAction.KNOCK) {
-                                    setStatus("Player " + nextPlayer + " is knocking...");
-                                    addCardPlayedToLog(nextPlayer, selected, card, lastAction.name());
+                                    setStatus("Player " + nextPlayer + " is declaring knock...");
+                                    isKnockDeclared = true;
+                                    knocker = nextPlayer;
                                     isContinue = false;
+                                    addCardPlayedToLog(nextPlayer, selected, card, "KNOCK");
                                     break;
                                 }
                             } else {
                                 addCardPlayedToLog(nextPlayer, selected, card, null);
                             }
+
                             delay(delayTime);
                         }
                     }
@@ -791,46 +908,105 @@ public class Rummy extends CardGame {
                     if (!hasRunAuto) {
                         processNonAutoPlaying(nextPlayer, hand);
                     }
-                }
-
-                if (!isAuto) {
+                } else {
                     processNonAutoPlaying(nextPlayer, hand);
                 }
 
-                if (isRummyDeclared) {
-                    System.out.println("\n>>> VALIDATING RUMMY DECLARATION <<<");
-                    System.out.println("Declarer: Player " + nextPlayer);
-                    Hand declarerHand = hands[nextPlayer];
-                    System.out.println("Cards in hand: " + declarerHand.getNumberOfCards());
+                // -------- Declarations handling --------
+                if (!isGinMode) {
+                    // ----- Classic Rummy -----
+                    if (isRummyDeclared) {
+                        System.out.println("\n>>> VALIDATING RUMMY DECLARATION <<<");
+                        System.out.println("Declarer: Player " + rummyDeclarer);
+                        Hand declarerHand = hands[rummyDeclarer];
+                        System.out.println("Cards in hand: " + declarerHand.getNumberOfCards());
 
-                    boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
-                    System.out.println("All cards form melds? " + allMelded);
+                        boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
+                        System.out.println("All cards form melds? " + allMelded);
 
-                    if (!allMelded) {
-                        System.out.println("INVALID RUMMY - continuing game");
-                        setStatus("Invalid Rummy declaration - not all cards form melds");
-                        isRummyDeclared = false;
-                        rummyDeclarer = -1;
-                        // Don't break - continue playing
-                    } else {
-                        System.out.println("VALID RUMMY - ending round");
-                        isContinue = false;
-                        break; // Break out of for loop
+                        if (!allMelded) {
+                            System.out.println("INVALID RUMMY - continuing game");
+                            setStatus("Invalid Rummy declaration - not all cards form melds");
+                            isRummyDeclared = false;
+                            rummyDeclarer = -1;
+                            // continue playing
+                        } else {
+                            System.out.println("VALID RUMMY - ending round");
+                            isContinue = false;
+                            break;
+                        }
+                    }
+                } else {
+                    // ----- Gin Rummy -----
+                    if (isGinDeclared) {
+                        System.out.println("\n>>> VALIDATING GIN DECLARATION <<<");
+                        System.out.println("Declarer: Player " + ginDeclarer);
+                        Hand declarerHand = hands[ginDeclarer];
+                        System.out.println("Cards in hand: " + declarerHand.getNumberOfCards());
+
+                        boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
+                        MeldDetector.MeldAnalysis ginAnalysis = MeldDetector.findBestMelds(declarerHand);
+                        int ginDeadwood = ginAnalysis.getDeadwoodValue();
+
+                        System.out.println("All cards form melds? " + allMelded);
+                        System.out.println("Deadwood at gin: " + ginDeadwood);
+
+                        if (!allMelded || ginDeadwood != 0) {
+                            System.out.println("INVALID GIN - continuing game");
+                            setStatus("Invalid Gin: not all cards melded or deadwood > 0");
+                            isGinDeclared = false;
+                            ginDeclarer = -1;
+                            // continue playing
+                        } else {
+                            System.out.println("VALID GIN - ending round");
+                            setStatus("Gin declared!");
+                            isContinue = false;   // scoring handles bonus, etc.
+                            break;
+                        }
+                    }
+
+                    // If both buttons somehow pressed, Gin would have ended the round above.
+                    if (isKnockDeclared) {
+                        System.out.println("\n>>> KNOCK DECLARED <<<");
+                        System.out.println("Knocker: Player " + knocker);
+
+                        // Validate knocker's deadwood against threshold
+                        MeldDetector.MeldAnalysis knockAnalysis = MeldDetector.findBestMelds(hands[knocker]);
+                        int knockerDeadwood = knockAnalysis.getDeadwoodValue();
+                        System.out.println("Deadwood value at knock: " + knockerDeadwood);
+                        System.out.println("Knock threshold: " + knockThreshold);
+
+                        if (knockerDeadwood > knockThreshold) {
+                            // Illegal knock: reject and keep playing
+                            System.out.println("Invalid Knock - deadwood exceeds threshold. Continuing round.");
+                            setStatus("Invalid Knock: deadwood " + knockerDeadwood + " > " + knockThreshold);
+                            isKnockDeclared = false;
+                            knocker = -1;
+                            // do not end round
+                        } else {
+                            // Legal knock: end round; scoring will handle layoff/undercut
+                            isContinue = false;
+                            break;
+                        }
                     }
                 }
 
+                // ----- Stockpile exhaustion check -----
                 if (pack.isEmpty()) {
+                    System.out.println("\n>>> STOCK EXHAUSTED <<<");
+                    stockExhaustedThisRound = true;
                     setStatus("Stockpile is exhausted. Calculating players' scores now.");
                     isContinue = false;
+                    break; // exit the inner for-loop immediately
                 }
 
+                // Advance to next player
                 nextPlayer = (nextPlayer + 1) % nbPlayers;
-            }
-            i++;
-        }
-        // Calculate scores
-        calculateRoundScores();
+            } // end for (players loop)
+        } // end while (isContinue)
 
+        // Calculate scores and finish round
+        calculateRoundScores();
         addEndOfRoundToLog();
         return false;
     }
@@ -910,55 +1086,90 @@ public class Rummy extends CardGame {
         isAuto = Boolean.parseBoolean(properties.getProperty("isAuto"));
         thinkingTime = Integer.parseInt(properties.getProperty("thinkingTime", "200"));
         delayTime = Integer.parseInt(properties.getProperty("delayTime", "50"));
-        nbStartCards = Integer.parseInt(properties.getProperty("number_cards", "13"));
+
+        // Mode selection (default classic)
+        String mode = properties.getProperty("mode", "classic").toLowerCase();
+        isGinMode = mode.equals("gin");
+
+        if (isGinMode) {
+            nbStartCards = 10; // Gin uses 10 cards regardless of number_cards prop
+        } else {
+            nbStartCards = Integer.parseInt(properties.getProperty("number_cards", "13"));
+        }
+
+        // Knock threshold (spec example uses 7)
+        knockThreshold = Integer.parseInt(properties.getProperty("knock_threshold", "7"));
     }
 
     private void calculateRoundScores() {
         System.out.println("\n========== CALCULATING ROUND SCORES ==========");
-        System.out.println("isRummyDeclared: " + isRummyDeclared);
-        System.out.println("rummyDeclarer: " + rummyDeclarer);
+        System.out.println("mode=" + (isGinMode ? "GIN" : "CLASSIC")
+                + " | Rummy=" + isRummyDeclared + " rDec=" + rummyDeclarer
+                + " | Gin=" + isGinDeclared + " gDec=" + ginDeclarer
+                + " | Knock=" + isKnockDeclared + " kDec=" + knocker);
 
-        // Analyze both players' hands
         MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[nbPlayers];
-
         for (int i = 0; i < nbPlayers; i++) {
             analyses[i] = MeldDetector.findBestMelds(hands[i]);
-            System.out.println("Player " + i + " has " + hands[i].getNumberOfCards() + " cards");
-            System.out.println("  Melds: " + analyses[i].getMelds().size());
-            System.out.println("  Deadwood value: " + analyses[i].getDeadwoodValue());
+            System.out.println("P" + i + " melds=" + analyses[i].getMelds().size()
+                    + " deadwood=" + analyses[i].getDeadwoodValue());
         }
 
-        // Determine winner and award points
-        if (isRummyDeclared && rummyDeclarer != -1) {
-            System.out.println("SCENARIO: Rummy declared by Player " + rummyDeclarer);
+        if (isGinMode) {
+            if (isGinDeclared && ginDeclarer != -1) {
+                int opp = (ginDeclarer + 1) % nbPlayers;
+                int pts = analyses[opp].getDeadwoodValue();
+                scores[ginDeclarer] += pts;
+                roundWinner = ginDeclarer;
+                setStatus("Player " + ginDeclarer + " wins with GIN! +" + pts + " points");
+            } else if (isKnockDeclared && knocker != -1) {
+                int d0 = analyses[0].getDeadwoodValue();
+                int d1 = analyses[1].getDeadwoodValue();
+                int opp = (knocker + 1) % nbPlayers;
+                int kd = (knocker == 0) ? d0 : d1;
+                int od = (opp == 0) ? d0 : d1;
 
-            // Verify the RUMMY declaration is valid
-            Hand declarerHand = hands[rummyDeclarer];
-            boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
-
-            if (allMelded) {
+                if (kd < od) {
+                    int diff = od - kd;
+                    scores[knocker] += diff;
+                    roundWinner = knocker;
+                    setStatus("Knock success by P" + knocker + " +" + diff + " points");
+                } else if (kd > od) {
+                    int diff = kd - od;
+                    scores[opp] += diff;
+                    roundWinner = opp;
+                    setStatus("Knock undercut by P" + opp + " +" + diff + " points");
+                } else {
+                    setStatus("Knock tie - no points");
+                }
+            } else {
+                // Stock exhausted (Gin mode): lower deadwood wins opponent's total
+                int d0 = analyses[0].getDeadwoodValue();
+                int d1 = analyses[1].getDeadwoodValue();
+                if (d0 < d1) { scores[0] += d1; roundWinner = 0; setStatus("Stock exhausted: P0 wins +" + d1); }
+                else if (d1 < d0) { scores[1] += d0; roundWinner = 1; setStatus("Stock exhausted: P1 wins +" + d0); }
+                else { setStatus("Stock exhausted: tie - no points"); }
+            }
+        } else {
+            // Classic mode scoring (unchanged)
+            if (isRummyDeclared && rummyDeclarer != -1) {
                 int opponent = (rummyDeclarer + 1) % nbPlayers;
                 int pointsEarned = analyses[opponent].getDeadwoodValue();
                 scores[rummyDeclarer] += pointsEarned;
                 roundWinner = rummyDeclarer;
-                System.out.println("Valid RUMMY! Points earned: " + pointsEarned);
                 setStatus("Player " + rummyDeclarer + " wins with Rummy! +" + pointsEarned + " points");
             } else {
-                System.out.println("Invalid RUMMY declaration!");
-                // Handle invalid RUMMY - this shouldn't happen with smart player
+                int d0 = analyses[0].getDeadwoodValue();
+                int d1 = analyses[1].getDeadwoodValue();
+                if (d0 < d1) { scores[0] += d1; roundWinner = 0; setStatus("Stock exhausted: P0 wins +" + d1); }
+                else if (d1 < d0) { scores[1] += d0; roundWinner = 1; setStatus("Stock exhausted: P1 wins +" + d0); }
+                else { setStatus("Stock exhausted: tie - no points"); }
             }
-        } else {
-            // ... rest of stockpile exhausted logic ...
         }
 
-        // Reset flags
-        isRummyDeclared = false;
-        rummyDeclarer = -1;
-    }
-
-    private void enableRummyButton(boolean enable) {
-        if (rummyActor != null) {
-            rummyActor.setMouseTouchEnabled(enable);
-        }
+        // Reset flags for next round
+        isRummyDeclared = false; rummyDeclarer = -1;
+        isGinDeclared = false;  ginDeclarer = -1;
+        isKnockDeclared = false; knocker = -1;
     }
 }
