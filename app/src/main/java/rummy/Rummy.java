@@ -277,7 +277,6 @@ public class Rummy extends CardGame {
                     if (dw <= knockThreshold) {
                         isKnockDeclared = true;
                         knocker = HUMAN_PLAYER_INDEX;
-                        setStatus("Knock declared (deadwood " + dw + " ≤ " + knockThreshold + ")");
                     } else {
                         // Reject knock, keep the round going
                         isKnockDeclared = false;
@@ -861,7 +860,6 @@ public class Rummy extends CardGame {
                             // do not end round
                         } else {
                             // Legal knock: end round; scoring will handle layoff/undercut
-                            setStatus("Knock declared (deadwood " + knockerDeadwood + " ≤ " + knockThreshold + ")");
                             isContinue = false;
                             break;
                         }
