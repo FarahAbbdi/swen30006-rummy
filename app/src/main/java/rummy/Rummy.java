@@ -20,7 +20,9 @@ public class Rummy extends CardGame {
     private boolean isKnockDeclared = false;
     private int knocker = -1;
     private final int knockThreshold; // default 7 (spec)
-
+    private static final int GIN_BONUS = 25;
+    private static final int UNDERCUT_BONUS = 25;
+    private boolean stockExhaustedThisRound = false;
     // ===== Mode =====
     private final boolean isGinMode;
 
@@ -201,6 +203,10 @@ public class Rummy extends CardGame {
     }
 
     private void initRound() {
+        // --- RESET auto scripting state for the new round ---
+        playerAutoMovements.clear();
+        Arrays.fill(autoIndexHands, 0);
+
         hands = new Hand[nbPlayers];
         for (int i = 0; i < nbPlayers; i++) {
             hands[i] = new Hand(deck);
@@ -265,9 +271,21 @@ public class Rummy extends CardGame {
             addActor(knockActor, knockLocation);
             knockActor.addButtonListener(new GGButtonListener() {
                 @Override public void buttonPressed(GGButton ggButton) {
-                    isKnockDeclared = true;
-                    knocker         = HUMAN_PLAYER_INDEX;
-                    isEndingTurn    = true;
+                    // Validate knock against threshold for HUMAN
+                    MeldDetector.MeldAnalysis a = MeldDetector.findBestMelds(hands[HUMAN_PLAYER_INDEX]);
+                    int dw = a.getDeadwoodValue();
+                    if (dw <= knockThreshold) {
+                        isKnockDeclared = true;
+                        knocker = HUMAN_PLAYER_INDEX;
+                        setStatus("Knock declared (deadwood " + dw + " ≤ " + knockThreshold + ")");
+                    } else {
+                        // Reject knock, keep the round going
+                        isKnockDeclared = false;
+                        knocker = -1;
+                        setStatus("Invalid Knock: deadwood " + dw + " > threshold " + knockThreshold);
+                    }
+                    // End human decision window either way
+                    isEndingTurn = true;
                 }
                 @Override public void buttonReleased(GGButton ggButton) { }
                 @Override public void buttonClicked(GGButton ggButton) { }
@@ -690,29 +708,35 @@ public class Rummy extends CardGame {
         addPlayerCardsToLog();
         int i = 0;
         boolean isContinue = true;
+        stockExhaustedThisRound = false;
         setupPlayerAutoMovements();
+
         while (isContinue) {
             i++;
             addTurnInfoToLog(i);
+
             for (int j = 0; j < nbPlayers; j++) {
                 Hand hand = hands[nextPlayer];
 
+                // -------- Player turn (auto or human) --------
                 if (isAuto) {
                     int nextPlayerAutoIndex = autoIndexHands[nextPlayer];
                     List<String> nextPlayerMovement = playerAutoMovements.get(nextPlayer);
                     String nextMovement = "";
                     boolean hasRunAuto = false;
+
                     if (nextPlayerMovement.size() > nextPlayerAutoIndex) {
                         nextMovement = nextPlayerMovement.get(nextPlayerAutoIndex);
                         if (!nextMovement.isEmpty()) {
                             hasRunAuto = true;
                             nextPlayerAutoIndex++;
-
                             autoIndexHands[nextPlayer] = nextPlayerAutoIndex;
+
                             setStatus("Player " + nextPlayer + " is playing");
                             List<CardAction> cardActions = getActionFromAutoMovement(nextMovement);
                             CardAction cardAction = cardActions.get(0);
                             Card card = null;
+
                             if (cardAction == CardAction.DISCARD) {
                                 card = processTopCardFromPile(discard, hand);
                                 selected = getCardElementFromAutoMovement(hand, nextMovement);
@@ -724,6 +748,7 @@ public class Rummy extends CardGame {
                             }
 
                             delay(thinkingTime);
+
                             if (cardActions.size() > 1) {
                                 CardAction lastAction = cardActions.get(1);
                                 if (lastAction == CardAction.RUMMY) {
@@ -732,7 +757,7 @@ public class Rummy extends CardGame {
                                     rummyDeclarer = nextPlayer;
                                     isContinue = false;
                                     addCardPlayedToLog(nextPlayer, selected, card, lastAction.name());
-                                    break;
+                                    break; // break inner for-loop
                                 } else if (lastAction == CardAction.GIN) {
                                     setStatus("Player " + nextPlayer + " is declaring gin...");
                                     isGinDeclared = true;
@@ -751,6 +776,7 @@ public class Rummy extends CardGame {
                             } else {
                                 addCardPlayedToLog(nextPlayer, selected, card, null);
                             }
+
                             delay(delayTime);
                         }
                     }
@@ -758,13 +784,11 @@ public class Rummy extends CardGame {
                     if (!hasRunAuto) {
                         processNonAutoPlaying(nextPlayer, hand);
                     }
-                }
-
-                if (!isAuto) {
+                } else {
                     processNonAutoPlaying(nextPlayer, hand);
                 }
 
-                // ===== Declarations handling (verbose + consistent) =====
+                // -------- Declarations handling --------
                 if (!isGinMode) {
                     // ----- Classic Rummy -----
                     if (isRummyDeclared) {
@@ -797,45 +821,69 @@ public class Rummy extends CardGame {
                         System.out.println("Cards in hand: " + declarerHand.getNumberOfCards());
 
                         boolean allMelded = MeldDetector.allCardsFormedIntoMelds(declarerHand);
-                        System.out.println("All cards form melds? " + allMelded);
+                        MeldDetector.MeldAnalysis ginAnalysis = MeldDetector.findBestMelds(declarerHand);
+                        int ginDeadwood = ginAnalysis.getDeadwoodValue();
 
-                        if (!allMelded) {
+                        System.out.println("All cards form melds? " + allMelded);
+                        System.out.println("Deadwood at gin: " + ginDeadwood);
+
+                        if (!allMelded || ginDeadwood != 0) {
                             System.out.println("INVALID GIN - continuing game");
-                            setStatus("Invalid Gin declaration - not all cards form melds");
+                            setStatus("Invalid Gin: not all cards melded or deadwood > 0");
                             isGinDeclared = false;
                             ginDeclarer = -1;
                             // continue playing
                         } else {
                             System.out.println("VALID GIN - ending round");
-                            isContinue = false;
+                            setStatus("Gin declared!");
+                            isContinue = false;   // scoring handles bonus, etc.
                             break;
                         }
                     }
 
+                    // If both buttons somehow pressed, Gin would have ended the round above.
                     if (isKnockDeclared) {
                         System.out.println("\n>>> KNOCK DECLARED <<<");
                         System.out.println("Knocker: Player " + knocker);
-                        // Helpful debug: show current deadwood of knocker at declaration time
+
+                        // Validate knocker's deadwood against threshold
                         MeldDetector.MeldAnalysis knockAnalysis = MeldDetector.findBestMelds(hands[knocker]);
-                        System.out.println("Deadwood value at knock: " + knockAnalysis.getDeadwoodValue());
-                        setStatus("Knock declared");
-                        // Knock ends the round immediately; scoring handles the difference.
-                        isContinue = false;
-                        break;
+                        int knockerDeadwood = knockAnalysis.getDeadwoodValue();
+                        System.out.println("Deadwood value at knock: " + knockerDeadwood);
+                        System.out.println("Knock threshold: " + knockThreshold);
+
+                        if (knockerDeadwood > knockThreshold) {
+                            // Illegal knock: reject and keep playing
+                            System.out.println("Invalid Knock - deadwood exceeds threshold. Continuing round.");
+                            setStatus("Invalid Knock: deadwood " + knockerDeadwood + " > " + knockThreshold);
+                            isKnockDeclared = false;
+                            knocker = -1;
+                            // do not end round
+                        } else {
+                            // Legal knock: end round; scoring will handle layoff/undercut
+                            setStatus("Knock declared (deadwood " + knockerDeadwood + " ≤ " + knockThreshold + ")");
+                            isContinue = false;
+                            break;
+                        }
                     }
                 }
 
+                // ----- Stockpile exhaustion check -----
                 if (pack.isEmpty()) {
+                    System.out.println("\n>>> STOCK EXHAUSTED <<<");
+                    stockExhaustedThisRound = true;
                     setStatus("Stockpile is exhausted. Calculating players' scores now.");
                     isContinue = false;
+                    break; // exit the inner for-loop immediately
                 }
 
+                // Advance to next player
                 nextPlayer = (nextPlayer + 1) % nbPlayers;
-            }
-        }
-        // Calculate scores
-        calculateRoundScores();
+            } // end for (players loop)
+        } // end while (isContinue)
 
+        // Calculate scores and finish round
+        calculateRoundScores();
         addEndOfRoundToLog();
         return false;
     }
