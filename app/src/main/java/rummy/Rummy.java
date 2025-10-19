@@ -749,50 +749,46 @@ public class Rummy extends CardGame {
                 System.out.println("  " + cardDescriptionForLog(c));
             }
 
-            // Step 4: Check if we can declare RUMMY (now with exactly 13 cards)
-            System.out.println("Checking for RUMMY declaration...");
-            boolean canDeclareRummy = MeldDetector.allCardsFormedIntoMelds(hand);
-            System.out.println("Can declare RUMMY? " + canDeclareRummy);
-
-            if (canDeclareRummy) {
-                setStatusText("Player " + nextPlayer + " is declaring rummy...");
-                isRummyDeclared = true;
-                rummyDeclarer = nextPlayer;
-                System.out.println("P0 DECLARING RUMMY!");
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
-            } else {
-                System.out.println("P0 NOT declaring RUMMY - continuing game");
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
-            }
-
-            System.out.println("=== P0 SMART COMPUTER TURN END ===\n");
+            // Step 4: Check declarations based on game mode
             if (isGinMode) {
-                // Try Gin
+                System.out.println("Checking for GIN/KNOCK declaration...");
+
+                // Try Gin first (all cards in melds)
                 if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+                    setStatusText("Player " + nextPlayer + " is declaring gin...");
                     isGinDeclared = true;
                     ginDeclarer = nextPlayer;
+                    System.out.println("P0 DECLARING GIN!");
                     addCardPlayedToLog(nextPlayer, selected, drawnCard, "GIN");
                 } else {
                     // Try Knock (deadwood <= threshold)
                     MeldDetector.MeldAnalysis a = MeldDetector.findBestMelds(hand);
                     if (a.getDeadwoodValue() <= knockThreshold) {
+                        setStatusText("Player " + nextPlayer + " is declaring knock...");
                         isKnockDeclared = true;
                         knocker = nextPlayer;
+                        System.out.println("P0 DECLARING KNOCK!");
                         addCardPlayedToLog(nextPlayer, selected, drawnCard, "KNOCK");
                     } else {
+                        System.out.println("P0 NOT declaring - continuing game");
                         addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
                     }
                 }
             } else {
-                // Classic: Rummy if all melds (13)
+                // Classic Rummy mode
+                System.out.println("Checking for RUMMY declaration...");
                 if (MeldDetector.allCardsFormedIntoMelds(hand)) {
+                    setStatusText("Player " + nextPlayer + " is declaring rummy...");
                     isRummyDeclared = true;
                     rummyDeclarer = nextPlayer;
+                    System.out.println("P0 DECLARING RUMMY!");
                     addCardPlayedToLog(nextPlayer, selected, drawnCard, "RUMMY");
                 } else {
+                    System.out.println("P0 NOT declaring RUMMY - continuing game");
                     addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
                 }
             }
+            System.out.println("=== P0 SMART COMPUTER TURN END ===\n");
         }
     }
 

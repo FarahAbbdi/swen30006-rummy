@@ -206,7 +206,7 @@ public class SmartComputerPlayer {
 
         // Highest card value among the tied cards
         Card highestValueCard = leastFrequentSuitCards.stream()
-                .max(Comparator.comparingInt(MeldDetector::getCardValue))
+                .max(Comparator.comparingInt(MeldDetector::getCardValue))  // max, not min
                 .orElse(leastFrequentSuitCards.get(0));
 
         System.out.println("[Discard Selection] Card selected (highest value among tie): " + highestValueCard);

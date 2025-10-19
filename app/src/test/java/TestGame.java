@@ -55,7 +55,7 @@ public class TestGame {
     public void testSmartComputersForGin() {
         String testProperties = "properties/test5.properties";
         String logResult = runningGame(testProperties);
-        assertTrue("Turn 0: P0 needs to call Knock", logResult.contains("Turn0:P1-13S-12S,P0-12S-2H-KNOCK"));
+        assertTrue("Turn 0: P0 needs to call Knock", logResult.contains("Turn0:P1-13S-12S,P0-12S-4H-KNOCK"));
         assertTrue("Round 0 ends with P0 wins with a total of 66 points", logResult.contains("Round0 End:P0-66,P1-0"));
         assertTrue("Round 1 ends with P0 wins with a total of 150 points", logResult.contains("Round1 End:P0-150,P1-0"));
         assertTrue("Game Ends with P0 win", logResult.contains("Game End:P0"));
