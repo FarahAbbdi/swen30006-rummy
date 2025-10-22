@@ -1,14 +1,16 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.Card;
 import ch.aplu.jcardgame.Deck;
 import ch.aplu.jcardgame.Hand;
+import rummy.Rank;
+import rummy.Suit;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MinimumRankGapStrategy implements CardEvaluationStrategy{
+public class MinimumRankGapStrategy implements CardEvaluationStrategy {
     @Override
     public boolean evaluate(Card drawnCard, Hand hand, Deck deck) {
         Suit drawnSuit = (Suit) drawnCard.getSuit();

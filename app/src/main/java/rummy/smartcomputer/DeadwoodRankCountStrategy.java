@@ -1,14 +1,16 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.Card;
 import ch.aplu.jcardgame.Deck;
 import ch.aplu.jcardgame.Hand;
+import rummy.MeldDetector;
+import rummy.Rank;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DeadwoodRankCountStrategy implements CardEvaluationStrategy{
+public class DeadwoodRankCountStrategy implements CardEvaluationStrategy {
     @Override
     public boolean evaluate(Card drawnCard, Hand hand, Deck deck) {
         // Create temporary hand with drawn card

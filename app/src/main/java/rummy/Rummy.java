@@ -2,6 +2,7 @@ package rummy;
 
 import ch.aplu.jcardgame.*;
 import ch.aplu.jgamegrid.*;
+import rummy.smartcomputer.SmartComputerPlayer;
 
 import java.awt.*;
 import java.util.*;

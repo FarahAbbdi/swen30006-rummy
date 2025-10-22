@@ -1,10 +1,11 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.Card;
 import ch.aplu.jcardgame.Deck;
 import ch.aplu.jcardgame.Hand;
+import rummy.MeldDetector;
 
-public class ImmediateMeldStrategy implements CardEvaluationStrategy{
+public class ImmediateMeldStrategy implements CardEvaluationStrategy {
     @Override
     public boolean evaluate(Card drawnCard, Hand hand, Deck deck) {
         // Create temporary hand with the drawn card

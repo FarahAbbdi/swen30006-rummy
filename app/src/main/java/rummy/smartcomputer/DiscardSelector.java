@@ -1,6 +1,10 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.*;
+import rummy.MeldDetector;
+import rummy.Rank;
+import rummy.Suit;
+
 import java.util.*;
 import java.util.stream.Collectors;
 

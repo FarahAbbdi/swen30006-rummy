@@ -1,6 +1,8 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.*;
+import rummy.Rank;
+import rummy.Suit;
 
 /**
  * Smart computer player that uses evaluation strategies to make intelligent decisions.

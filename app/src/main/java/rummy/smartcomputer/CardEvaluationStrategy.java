@@ -1,4 +1,4 @@
-package rummy;
+package rummy.smartcomputer;
 
 import ch.aplu.jcardgame.*;
 
