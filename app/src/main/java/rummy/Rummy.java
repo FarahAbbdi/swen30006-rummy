@@ -69,6 +69,9 @@ public class Rummy extends CardGame {
     private TextActor packNameActor;
     private TextActor discardNameActor;
 
+    // Smart Computer Player
+    private SmartComputerPlayer smartPlayer;
+
     private final Location packLocation = new Location(75, 350);
     private final Location discardLocation = new Location(625, 350);
     private final Location packNameLocation = new Location(30, 280);
@@ -673,72 +676,31 @@ public class Rummy extends CardGame {
             Card cardToKeep = null;
             boolean keptCard = false;
 
-            // Step 1: Evaluate discard pile top card
+            // Step 1: Evaluate discard pile
             if (!discard.isEmpty()) {
                 Card discardTop = dealTopCard(discard);
-                System.out.println("Discard pile top card: " + cardDescriptionForLog(discardTop));
 
-                SmartComputerPlayer.EvaluationResult discardEval =
-                        SmartComputerPlayer.evaluateCard(discardTop, hand, deck);
-
-                System.out.println("Discard evaluation satisfies criteria: " + discardEval.satisfiesAnyCriterion());
-                System.out.println("  Criterion 1 (immediate meld): " + discardEval.criterion1);
-                System.out.println("  Criterion 2 (rank gap): " + discardEval.criterion2);
-                System.out.println("  Criterion 3 (max suit): " + discardEval.criterion3);
-                System.out.println("  Criterion 4 (deadwood rank): " + discardEval.criterion4);
-
-                if (discardEval.satisfiesAnyCriterion()) {
-                    setStatusText("Player " + nextPlayer + " is picking from discard pile...");
+                if (smartPlayer.shouldKeepCard(discardTop, hand)) {
                     drawnCard = processTopCardFromPile(discard, hand);
-                    cardToKeep = drawnCard;
                     keptCard = true;
-                    System.out.println("P0 PICKED UP from discard: " + cardDescriptionForLog(drawnCard));
-                } else {
-                    System.out.println("P0 REJECTED discard pile card");
                 }
-            } else {
-                System.out.println("Discard pile is empty");
             }
 
-            // Step 2: If didn't take discard, try stockpile
+            // Step 2: If didn't keep discard, try stockpile
             if (!keptCard) {
-                setStatusText("Player " + nextPlayer + " is picking from stockpile...");
                 Card stockpileCard = processTopCardFromPile(pack, hand);
                 drawnCard = stockpileCard;
-                System.out.println("P0 drew from stockpile: " + cardDescriptionForLog(drawnCard));
 
-                SmartComputerPlayer.EvaluationResult stockpileEval =
-                        SmartComputerPlayer.evaluateCard(stockpileCard, hand, deck);
-
-                System.out.println("Stockpile evaluation satisfies criteria: " + stockpileEval.satisfiesAnyCriterion());
-                System.out.println("  Criterion 1 (immediate meld): " + stockpileEval.criterion1);
-                System.out.println("  Criterion 2 (rank gap): " + stockpileEval.criterion2);
-                System.out.println("  Criterion 3 (max suit): " + stockpileEval.criterion3);
-                System.out.println("  Criterion 4 (deadwood rank): " + stockpileEval.criterion4);
-
-                if (stockpileEval.satisfiesAnyCriterion()) {
-                    cardToKeep = stockpileCard;
+                if (smartPlayer.shouldKeepCard(stockpileCard, hand)) {
                     keptCard = true;
-                    System.out.println("P0 KEEPING stockpile card");
-                } else {
-                    System.out.println("P0 will DISCARD stockpile card");
                 }
             }
 
-            // DEBUG: Print hand after drawing
-            System.out.println("Hand after drawing (" + hand.getNumberOfCards() + " cards):");
-            for (Card c : hand.getCardList()) {
-                System.out.println("  " + cardDescriptionForLog(c));
-            }
-
-            // Step 3: Select card to discard (always required to get back to 13 cards)
+            // Step 3: Select discard
             if (keptCard) {
-                selected = SmartComputerPlayer.selectCardToDiscard(hand, deck);
-                System.out.println("Smart discard selection: " + cardDescriptionForLog(selected));
+                selected = smartPlayer.selectCardToDiscard(hand, deck);
             } else {
-                // Discard the drawn card
                 selected = drawnCard;
-                System.out.println("Discarding drawn card: " + cardDescriptionForLog(selected));
             }
 
             discardCardFromHand(selected, hand);
@@ -1080,6 +1042,7 @@ public class Rummy extends CardGame {
     public Rummy(Properties properties) {
         super(700, 700, 30);
         this.properties = properties;
+        this.smartPlayer = new SmartComputerPlayer(deck);
         isAuto = Boolean.parseBoolean(properties.getProperty("isAuto"));
         thinkingTime = Integer.parseInt(properties.getProperty("thinkingTime", "200"));
         delayTime = Integer.parseInt(properties.getProperty("delayTime", "50"));

@@ -55,7 +55,7 @@ public class CardEvaluator {
             criteriaResults[i] = strategy.evaluate(drawnCard, hand, deck);
 
             // Debug logging
-            System.out.printf("[%s] Drawn: %s | Result: %b | %s\n",
+            System.out.printf("[%s] Drawn: %s | Result: %b\n",
                     strategy.getCriterionName(),
                     cardToString(drawnCard),
                     criteriaResults[i]);
