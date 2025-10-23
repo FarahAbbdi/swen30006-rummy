@@ -1,4 +1,4 @@
-package rummy;
+package rummy.strategy;
 
 import java.util.Properties;
 

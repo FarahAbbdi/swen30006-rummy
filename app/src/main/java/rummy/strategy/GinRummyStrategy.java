@@ -1,6 +1,8 @@
-package rummy;
+package rummy.strategy;
 
 import ch.aplu.jcardgame.Hand;
+import rummy.MeldDetector;
+import rummy.Rummy;
 
 import java.util.Arrays;
 import java.util.List;

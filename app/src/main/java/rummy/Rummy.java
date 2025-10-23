@@ -3,6 +3,8 @@ package rummy;
 import ch.aplu.jcardgame.*;
 import ch.aplu.jgamegrid.*;
 import rummy.smartcomputer.SmartComputerPlayer;
+import rummy.strategy.GameModeStrategy;
+import rummy.strategy.GameModeStrategyFactory;
 
 import java.awt.*;
 import java.util.*;
@@ -886,6 +888,25 @@ public class Rummy extends CardGame {
         return false;
     }
 
+    /**
+     * Plays a single round of the game.
+     *
+     * GRASP: Controller
+     * Coordinates the round flow:
+     * 1. Initialize round state
+     * 2. Loop through turns for each player
+     * 3. Check for declarations (delegated to strategy)
+     * 4. Check for stockpile exhaustion
+     * 5. Calculate scores (delegated to strategy)
+     *
+     * GRASP: High Cohesion
+     * - Focuses only on round flow coordination
+     * - Delegates player turns to processNonAutoPlaying()
+     * - Delegates scoring to strategy.calculateRoundScores()
+     * - Delegates declaration checking to checkForDeclarations()
+     *
+     * @return false (always, for historical reasons)
+     */
     private boolean playARound() {
         int nextPlayer = roundWinner;
         addRoundInfoToLog(currentRound);
@@ -1086,21 +1107,17 @@ public class Rummy extends CardGame {
         System.out.println("\n========== CALCULATING ROUND SCORES ==========");
         System.out.println("Mode: " + strategy.getModeName());
 
-        // Analyze all hands using facade
+        // Analyze all hands
         MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[nbPlayers];
         for (int i = 0; i < nbPlayers; i++) {
             analyses[i] = MeldDetector.findBestMelds(hands[i]);
-            // Use facade method for logging instead of accessing internals
             System.out.println("P" + i + " " + MeldDetector.getMeldSummary(hands[i]));
         }
 
         // Delegate scoring to strategy
         roundWinner = strategy.calculateRoundScores(hands, analyses, scores);
 
-        // Update UI status based on strategy's decision
         setStatus("Round ended. P" + roundWinner + " wins!");
-
         System.out.println("New scores: P0=" + scores[0] + " P1=" + scores[1]);
-        System.out.println("Next round starts with P" + roundWinner);
     }
 }
