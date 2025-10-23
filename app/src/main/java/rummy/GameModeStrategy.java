@@ -2,9 +2,19 @@ package rummy;
 
 import ch.aplu.jcardgame.Hand;
 
+import java.util.List;
+
 /**
- * Strategy interface for different Rummy game modes.
- * Encapsulates mode-specific rules and behaviors.
+ * Strategy interface for game mode-specific rules and behaviors.
+ *
+ * GRASP Pattern: Information Expert
+ * Responsibility: Owns knowledge about mode-specific rules (scoring, declarations, card counts)
+ *
+ * Design Pattern: Strategy
+ * Allows runtime selection of game mode behavior without changing controller
+ *
+ * Design Pattern: Polymorphism
+ * Each implementation provides mode-specific behavior through common interface
  */
 public interface GameModeStrategy {
 
@@ -55,4 +65,28 @@ public interface GameModeStrategy {
      * Returns whether this mode uses a specific declaration type
      */
     boolean usesDeclarationType(String declarationType);
+
+    /**
+     * Checks if a valid declaration has been made in this round
+     * @return true if a declaration has been made that should end the round
+     */
+    boolean hasActiveDeclaration();
+
+    /**
+     * Gets the player who made the active declaration
+     * @return player index, or -1 if no active declaration
+     */
+    int getDeclaringPlayer();
+
+    /**
+     * Gets the type of active declaration
+     * @return declaration type ("RUMMY", "GIN", "KNOCK") or null if none
+     */
+    String getDeclarationType();
+
+    /**
+     * Gets list of declaration types supported by this mode, in priority order
+     * @return list of declaration types (e.g., ["GIN", "KNOCK"] or ["RUMMY"])
+     */
+    List<String> getSupportedDeclarations();
 }

@@ -9,7 +9,24 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-
+/**
+ * Main Controller for the Rummy card game.
+ *
+ * GRASP Pattern: Controller
+ * Responsibilities:
+ * - Receives external events (user input, button clicks)
+ * - Coordinates game flow (dealing, turns, rounds)
+ * - Delegates specialized work to expert classes:
+ *   - MeldDetector: Meld analysis and validation
+ *   - GameModeStrategy: Mode-specific rules and scoring
+ *   - SmartComputerPlayer: AI decision-making
+ * - Manages UI updates and user feedback
+ *
+ * Does NOT:
+ * - Contain mode-specific logic (delegated to Strategy)
+ * - Perform meld calculations (delegated to MeldDetector)
+ * - Make AI decisions (delegated to SmartComputerPlayer)
+ */
 @SuppressWarnings("serial")
 public class Rummy extends CardGame {
     // ===== Strategy Pattern =====
@@ -624,180 +641,199 @@ public class Rummy extends CardGame {
     }
 
     /**
-     * Gets the last declaration action that was made (for logging)
+     * Gets the last declaration action for logging purposes.
+     *
+     * GRASP: Low Coupling - uses polymorphic interface method
      */
     private String getLastDeclarationAction() {
-        if (strategy instanceof ClassicRummyStrategy) {
-            ClassicRummyStrategy classic = (ClassicRummyStrategy) strategy;
-            if (classic.isRummyDeclared()) return "RUMMY";
-        }
-
-        if (strategy instanceof GinRummyStrategy) {
-            GinRummyStrategy gin = (GinRummyStrategy) strategy;
-            if (gin.isGinDeclared()) return "GIN";
-            if (gin.isKnockDeclared()) return "KNOCK";
-        }
-
-        return null;
+        return strategy.getDeclarationType();
     }
 
     /**
-     * Checks if computer player should make a declaration
+     * Checks if computer player should make a declaration.
+     * Tries all supported declarations in priority order.
+     *
+     * GRASP: Low Coupling - uses polymorphic strategy methods
+     * GRASP: Protected Variations - works with any strategy, any declarations
+     *
      * @return declaration type or null if no declaration
      */
     private String checkComputerDeclaration(Hand hand, int player) {
-        // Try declarations in priority order based on mode
-
-        if (strategy instanceof GinRummyStrategy) {
-            GinRummyStrategy gin = (GinRummyStrategy) strategy;
-
-            // Try Gin first (best outcome)
-            if (strategy.canDeclare(hand, "GIN")) {
-                strategy.validateDeclaration(hand, player, "GIN");
-                return "GIN";
-            }
-
-            // Try Knock next
-            if (strategy.canDeclare(hand,"KNOCK")) {
-                strategy.validateDeclaration(hand, player, "KNOCK");
-                return "KNOCK";
+        // Try each supported declaration in priority order
+        for (String declarationType : strategy.getSupportedDeclarations()) {
+            if (strategy.canDeclare(hand, declarationType)) {
+                boolean isValid = strategy.validateDeclaration(hand, player, declarationType);
+                if (isValid) {
+                    return declarationType;
+                }
             }
         }
-
-        if (strategy instanceof ClassicRummyStrategy) {
-            // Try Rummy
-            if (strategy.canDeclare(hand, "RUMMY")) {
-                strategy.validateDeclaration(hand, player, "RUMMY");
-                return "RUMMY";
-            }
-        }
-
-        return null; // No declaration
+        return null; // No declaration possible
     }
 
+    /**
+     * Processes a non-automated player turn.
+     * Delegates to appropriate handler based on player type.
+     *
+     * GRASP: High Cohesion - delegates to specific handlers
+     */
     private void processNonAutoPlaying(int nextPlayer, Hand hand) {
         if (HUMAN_PLAYER_INDEX == nextPlayer) {
-            // Clear any previous declaration state at start of turn
-            // (This is now handled inside strategy, but we ensure clean slate)
-
-            // Card drawing logic (keep as-is)
-            if (!discard.isEmpty()) {
-                setStatus("Player " + nextPlayer + " is playing. Please double click on a pile to draw");
-                waitingForHumanToSelectPile(pack, discard);
-            } else {
-                setStatus("Player " + nextPlayer + " is playing first. Please double click on the stockpile to draw");
-                waitingForHumanToSelectPile(pack, null);
-            }
-            drawCardToHand(hand);
-
-            setStatus("Player " + nextPlayer + " is playing. Please double click on a card in hand to select");
-            waitingForHumanToSelectCard(hand);
-            discardCardFromHand(selected, hand);
-
-            // Decision window - mode-agnostic
-            setStatus("Click End Turn or make a declaration");
-            enableDeclarationButtons(true);
-            waitingForHumanToEndTurn();
-            enableDeclarationButtons(false);
-
-            // Log human action - query strategy for what was declared
-            String action = getLastDeclarationAction();
-            addCardPlayedToLog(nextPlayer, selected, drawnCard, action);
+            processHumanTurn(nextPlayer, hand);
         } else {
-            // COMPUTER PLAYER (P0)
-            System.out.println("\n=== P0 COMPUTER TURN START ===");
-            System.out.println("Initial hand (" + hand.getNumberOfCards() + " cards):");
-            for (Card c : hand.getCardList()) {
-                System.out.println("  " + cardDescriptionForLog(c));
-            }
+            processComputerTurn(nextPlayer, hand);
+        }
+    }
 
-            // Check if computer_smart property is enabled
-            boolean isSmartEnabled = Boolean.parseBoolean(properties.getProperty("computer_smart", "false"));
-            System.out.println("Computer smart enabled: " + isSmartEnabled);
+    /**
+     * Processes a human player's turn.
+     * Handles card drawing, discarding, and declaration input.
+     *
+     * GRASP: High Cohesion - focuses only on human player interaction
+     */
+    private void processHumanTurn(int player, Hand hand) {
+        // Draw phase
+        if (!discard.isEmpty()) {
+            setStatus("Player " + player + " is playing. Please double click on a pile to draw");
+            waitingForHumanToSelectPile(pack, discard);
+        } else {
+            setStatus("Player " + player + " is playing first. Please double click on the stockpile to draw");
+            waitingForHumanToSelectPile(pack, null);
+        }
+        drawCardToHand(hand);
 
-            if (!isSmartEnabled) {
-                // ===== RANDOM LOGIC =====
-                System.out.println("Using random logic");
+        // Discard phase
+        setStatus("Player " + player + " is playing. Please double click on a card in hand to select");
+        waitingForHumanToSelectCard(hand);
+        discardCardFromHand(selected, hand);
 
-                if (!discard.isEmpty()) {
-                    boolean isPickingDiscard = new Random().nextBoolean();
-                    if (isPickingDiscard) {
-                        setStatusText("Player " + nextPlayer + " is picking from discard pile...");
-                        drawnCard = processTopCardFromPile(discard, hand);
-                    } else {
-                        setStatusText("Player " + nextPlayer + " is picking from stockpile...");
-                        drawnCard = processTopCardFromPile(pack, hand);
-                    }
-                } else {
-                    setStatusText("Player " + nextPlayer + " is picking from stockpile...");
-                    drawnCard = processTopCardFromPile(pack, hand);
-                }
+        // Declaration phase
+        setStatus("Click End Turn or make a declaration");
+        enableDeclarationButtons(true);
+        waitingForHumanToEndTurn();
+        enableDeclarationButtons(false);
 
-                selected = getRandomCard(hand);
-                discardCardFromHand(selected, hand);
+        // Log the move
+        String action = getLastDeclarationAction();
+        addCardPlayedToLog(player, selected, drawnCard, action);
+    }
 
-                // Check for declaration using strategy
-                String declaration = checkComputerDeclaration(hand, nextPlayer);
-                if (declaration != null) {
-                    System.out.println("P0 DECLARING " + declaration + "!");
-                    addCardPlayedToLog(nextPlayer, selected, drawnCard, declaration);
-                } else {
-                    addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
-                }
+    /**
+     * Processes a computer player's turn.
+     * Uses either random or smart AI based on configuration.
+     *
+     * GRASP: High Cohesion - focuses only on computer player logic
+     */
+    private void processComputerTurn(int player, Hand hand) {
+        System.out.println("\n=== P" + player + " COMPUTER TURN START ===");
+        System.out.println("Initial hand (" + hand.getNumberOfCards() + " cards):");
+        for (Card c : hand.getCardList()) {
+            System.out.println("  " + cardDescriptionForLog(c));
+        }
 
-                System.out.println("=== P0 COMPUTER TURN END ===\n");
-                return;
-            }
+        boolean isSmartEnabled = Boolean.parseBoolean(properties.getProperty("computer_smart", "false"));
+        System.out.println("Computer smart enabled: " + isSmartEnabled);
 
-            // ===== SMART LOGIC =====
-            setStatusText("Player " + nextPlayer + " thinking...");
+        if (!isSmartEnabled) {
+            processRandomComputerTurn(player, hand);
+        } else {
+            processSmartComputerTurn(player, hand);
+        }
 
-            boolean keptCard = false;
+        System.out.println("=== P" + player + " COMPUTER TURN END ===\n");
+    }
 
-            // Step 1: Evaluate discard pile
-            if (!discard.isEmpty()) {
-                Card discardTop = dealTopCard(discard);
-                if (smartPlayer.shouldKeepCard(discardTop, hand)) {
-                    drawnCard = processTopCardFromPile(discard, hand);
-                    keptCard = true;
-                }
-            }
+    /**
+     * Processes a random computer player turn.
+     * Makes random decisions for drawing and discarding.
+     *
+     * GRASP: High Cohesion - single responsibility (random AI)
+     */
+    private void processRandomComputerTurn(int player, Hand hand) {
+        System.out.println("Using random logic");
 
-            // Step 2: If didn't keep discard, try stockpile
-            if (!keptCard) {
+        // Random draw decision
+        if (!discard.isEmpty()) {
+            boolean isPickingDiscard = new Random().nextBoolean();
+            if (isPickingDiscard) {
+                setStatusText("Player " + player + " is picking from discard pile...");
+                drawnCard = processTopCardFromPile(discard, hand);
+            } else {
+                setStatusText("Player " + player + " is picking from stockpile...");
                 drawnCard = processTopCardFromPile(pack, hand);
-                if (smartPlayer.shouldKeepCard(drawnCard, hand)) {
-                    keptCard = true;
-                }
             }
+        } else {
+            setStatusText("Player " + player + " is picking from stockpile...");
+            drawnCard = processTopCardFromPile(pack, hand);
+        }
 
-            // Step 3: Select card to discard
-            if (keptCard) {
-                selected = smartPlayer.selectCardToDiscard(hand, deck);
-            } else {
-                selected = drawnCard;
+        // Random discard
+        selected = getRandomCard(hand);
+        discardCardFromHand(selected, hand);
+
+        // Check for declaration
+        String declaration = checkComputerDeclaration(hand, player);
+        if (declaration != null) {
+            System.out.println("P" + player + " DECLARING " + declaration + "!");
+            addCardPlayedToLog(player, selected, drawnCard, declaration);
+        } else {
+            addCardPlayedToLog(player, selected, drawnCard, null);
+        }
+    }
+
+    /**
+     * Processes a smart computer player turn.
+     * Uses SmartComputerPlayer for intelligent decisions.
+     *
+     * GRASP: High Cohesion - single responsibility (smart AI)
+     * GRASP: Information Expert - delegates card evaluation to SmartComputerPlayer
+     */
+    private void processSmartComputerTurn(int player, Hand hand) {
+        setStatusText("Player " + player + " thinking...");
+
+        boolean keptCard = false;
+
+        // Evaluate discard pile
+        if (!discard.isEmpty()) {
+            Card discardTop = dealTopCard(discard);
+            if (smartPlayer.shouldKeepCard(discardTop, hand)) {
+                drawnCard = processTopCardFromPile(discard, hand);
+                keptCard = true;
             }
+        }
 
-            discardCardFromHand(selected, hand);
-
-            // DEBUG: Print hand after discarding
-            System.out.println("Hand after discarding (" + hand.getNumberOfCards() + " cards):");
-            for (Card c : hand.getCardList()) {
-                System.out.println("  " + cardDescriptionForLog(c));
+        // If didn't keep discard, try stockpile
+        if (!keptCard) {
+            drawnCard = processTopCardFromPile(pack, hand);
+            if (smartPlayer.shouldKeepCard(drawnCard, hand)) {
+                keptCard = true;
             }
+        }
 
-            // Step 4: Check for declaration using strategy
-            String declaration = checkComputerDeclaration(hand, nextPlayer);
-            if (declaration != null) {
-                setStatusText("Player " + nextPlayer + " is declaring " + declaration + "...");
-                System.out.println("P0 DECLARING " + declaration + "!");
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, declaration);
-            } else {
-                System.out.println("P0 NOT declaring - continuing game");
-                addCardPlayedToLog(nextPlayer, selected, drawnCard, null);
-            }
+        // Select card to discard
+        if (keptCard) {
+            selected = smartPlayer.selectCardToDiscard(hand, deck);
+        } else {
+            selected = drawnCard;
+        }
 
-            System.out.println("=== P0 COMPUTER TURN END ===\n");
+        discardCardFromHand(selected, hand);
+
+        // Debug output
+        System.out.println("Hand after discarding (" + hand.getNumberOfCards() + " cards):");
+        for (Card c : hand.getCardList()) {
+            System.out.println("  " + cardDescriptionForLog(c));
+        }
+
+        // Check for declaration
+        String declaration = checkComputerDeclaration(hand, player);
+        if (declaration != null) {
+            setStatusText("Player " + player + " is declaring " + declaration + "...");
+            System.out.println("P" + player + " DECLARING " + declaration + "!");
+            addCardPlayedToLog(player, selected, drawnCard, declaration);
+        } else {
+            System.out.println("P" + player + " NOT declaring - continuing game");
+            addCardPlayedToLog(player, selected, drawnCard, null);
         }
     }
 
@@ -833,34 +869,20 @@ public class Rummy extends CardGame {
     }
 
     /**
-     * Checks if current player has made a valid declaration
+     * Checks if current player has made a valid declaration.
+     *
+     * GRASP: Low Coupling - uses interface methods instead of instanceof checks
+     * GRASP: Polymorphism - strategy handles mode-specific declaration logic
+     *
      * @return true if valid declaration ends the round
      */
     private boolean checkForDeclarations(int player) {
-        // For Classic mode
-        if (strategy instanceof ClassicRummyStrategy) {
-            ClassicRummyStrategy classic = (ClassicRummyStrategy) strategy;
-            if (classic.isRummyDeclared()) {
-                System.out.println("RUMMY declared by P" + classic.getRummyDeclarer());
-                return true;
-            }
+        if (strategy.hasActiveDeclaration()) {
+            int declarer = strategy.getDeclaringPlayer();
+            String declarationType = strategy.getDeclarationType();
+            System.out.println(declarationType + " declared by P" + declarer);
+            return true;
         }
-
-        // For Gin mode
-        if (strategy instanceof GinRummyStrategy) {
-            GinRummyStrategy gin = (GinRummyStrategy) strategy;
-
-            if (gin.isGinDeclared()) {
-                System.out.println("GIN declared by P" + gin.getGinDeclarer());
-                return true;
-            }
-
-            if (gin.isKnockDeclared()) {
-                System.out.println("KNOCK declared by P" + gin.getKnocker());
-                return true;
-            }
-        }
-
         return false;
     }
 
@@ -1049,30 +1071,27 @@ public class Rummy extends CardGame {
         thinkingTime = Integer.parseInt(properties.getProperty("thinkingTime", "200"));
         delayTime = Integer.parseInt(properties.getProperty("delayTime", "50"));
 
-        // Initialize strategy based on mode from properties
-        String mode = properties.getProperty("mode", "classic").toLowerCase();
-        if (mode.equals("gin")) {
-            this.strategy = new GinRummyStrategy(properties);
-        } else {
-            this.strategy = new ClassicRummyStrategy(properties);
-        }
+        // Initialize strategy using factory pattern
+        String mode = properties.getProperty("mode", "classic");
+        this.strategy = GameModeStrategyFactory.getInstance().createStrategy(mode, properties);
 
         // Get starting cards from strategy
         nbStartCards = strategy.getStartingCardCount();
 
         System.out.println("Initialized game with mode: " + strategy.getModeName());
+        System.out.println("Strategy created via factory pattern");
     }
 
     private void calculateRoundScores() {
         System.out.println("\n========== CALCULATING ROUND SCORES ==========");
         System.out.println("Mode: " + strategy.getModeName());
 
-        // Analyze all hands
+        // Analyze all hands using facade
         MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[nbPlayers];
         for (int i = 0; i < nbPlayers; i++) {
             analyses[i] = MeldDetector.findBestMelds(hands[i]);
-            System.out.println("P" + i + " melds=" + analyses[i].getMelds().size()
-                    + " deadwood=" + analyses[i].getDeadwoodValue());
+            // Use facade method for logging instead of accessing internals
+            System.out.println("P" + i + " " + MeldDetector.getMeldSummary(hands[i]));
         }
 
         // Delegate scoring to strategy

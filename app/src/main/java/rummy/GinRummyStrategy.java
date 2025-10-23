@@ -1,10 +1,20 @@
 package rummy;
 
 import ch.aplu.jcardgame.Hand;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 /**
- * Strategy for Gin Rummy mode (10 cards, Gin/Knock declarations, bonuses)
+ * Strategy for Gin Rummy mode (10 cards, Gin/Knock declarations)
+ *
+ * GRASP Pattern: Information Expert
+ * Owns knowledge of Gin Rummy rules:
+ * - 10 cards per player
+ * - Gin declaration (all cards in melds)
+ * - Knock declaration (anytime, no threshold per spec)
+ * - Scoring based on deadwood differences
  */
 public class GinRummyStrategy implements GameModeStrategy {
 
@@ -47,16 +57,16 @@ public class GinRummyStrategy implements GameModeStrategy {
     }
 
     private boolean validateGin(Hand hand, int player) {
-        boolean allMelded = MeldDetector.allCardsFormedIntoMelds(hand);
-        MeldDetector.MeldAnalysis analysis = MeldDetector.findBestMelds(hand);
-        int deadwood = analysis.getDeadwoodValue();
+        // Use facade method for Gin validation
+        boolean canDeclare = MeldDetector.canDeclareGin(hand);
 
-        if (allMelded && deadwood == 0) {
+        if (canDeclare) {
             isGinDeclared = true;
             ginDeclarer = player;
             System.out.println("VALID GIN by P" + player);
             return true;
         } else {
+            int deadwood = MeldDetector.getDeadwoodValue(hand);
             System.out.println("INVALID GIN by P" + player + " - deadwood: " + deadwood);
             isGinDeclared = false;
             ginDeclarer = -1;
@@ -65,8 +75,7 @@ public class GinRummyStrategy implements GameModeStrategy {
     }
 
     private boolean validateKnock(Hand hand, int player) {
-        MeldDetector.MeldAnalysis analysis = MeldDetector.findBestMelds(hand);
-        int deadwood = analysis.getDeadwoodValue();
+        int deadwood = MeldDetector.getDeadwoodValue(hand);
 
         isKnockDeclared = true;
         knocker = player;
@@ -160,7 +169,7 @@ public class GinRummyStrategy implements GameModeStrategy {
     public boolean canDeclare(Hand hand, String declarationType) {
         switch (declarationType) {
             case "GIN":
-                return MeldDetector.allCardsFormedIntoMelds(hand);
+                return MeldDetector.canDeclareGin(hand);
             case "KNOCK":
                 // Per spec: Any player can knock at any time
                 return true;
@@ -206,5 +215,30 @@ public class GinRummyStrategy implements GameModeStrategy {
     public void setKnockDeclared(boolean declared, int player) {
         this.isKnockDeclared = declared;
         this.knocker = player;
+    }
+
+    @Override
+    public boolean hasActiveDeclaration() {
+        return isGinDeclared || isKnockDeclared;
+    }
+
+    @Override
+    public int getDeclaringPlayer() {
+        if (isGinDeclared) return ginDeclarer;
+        if (isKnockDeclared) return knocker;
+        return -1;
+    }
+
+    @Override
+    public String getDeclarationType() {
+        if (isGinDeclared) return "GIN";
+        if (isKnockDeclared) return "KNOCK";
+        return null;
+    }
+
+    @Override
+    public List<String> getSupportedDeclarations() {
+        // Gin first (best), then Knock
+        return Arrays.asList("GIN", "KNOCK");
     }
 }

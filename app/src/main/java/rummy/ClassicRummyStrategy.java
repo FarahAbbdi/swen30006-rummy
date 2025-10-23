@@ -1,10 +1,19 @@
 package rummy;
 
 import ch.aplu.jcardgame.Hand;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 /**
  * Strategy for Classic Rummy mode (13 cards, Rummy declaration only)
+ *
+ * GRASP Pattern: Information Expert
+ * Owns knowledge of Classic Rummy rules:
+ * - 13 cards per player
+ * - Rummy declaration when all cards form melds
+ * - Winner earns opponent's deadwood value
  */
 public class ClassicRummyStrategy implements GameModeStrategy {
 
@@ -36,10 +45,10 @@ public class ClassicRummyStrategy implements GameModeStrategy {
             return false; // Classic only supports RUMMY
         }
 
-        // Validate all cards form melds
-        boolean allMelded = MeldDetector.allCardsFormedIntoMelds(hand);
+        // Use facade method for validation
+        boolean canDeclare = MeldDetector.canDeclareRummy(hand);
 
-        if (allMelded) {
+        if (canDeclare) {
             isRummyDeclared = true;
             rummyDeclarer = player;
             return true;
@@ -96,7 +105,7 @@ public class ClassicRummyStrategy implements GameModeStrategy {
             return false;
         }
 
-        return MeldDetector.allCardsFormedIntoMelds(hand);
+        return MeldDetector.canDeclareRummy(hand);
     }
 
     @Override
@@ -123,5 +132,25 @@ public class ClassicRummyStrategy implements GameModeStrategy {
     public void setRummyDeclared(boolean declared, int player) {
         this.isRummyDeclared = declared;
         this.rummyDeclarer = player;
+    }
+
+    @Override
+    public boolean hasActiveDeclaration() {
+        return isRummyDeclared;
+    }
+
+    @Override
+    public int getDeclaringPlayer() {
+        return rummyDeclarer;
+    }
+
+    @Override
+    public String getDeclarationType() {
+        return isRummyDeclared ? "RUMMY" : null;
+    }
+
+    @Override
+    public List<String> getSupportedDeclarations() {
+        return Arrays.asList("RUMMY");
     }
 }
