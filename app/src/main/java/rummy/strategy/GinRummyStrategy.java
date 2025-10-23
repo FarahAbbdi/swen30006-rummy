@@ -10,8 +10,6 @@ import java.util.Properties;
 
 /**
  * Strategy for Gin Rummy mode (10 cards, Gin/Knock declarations)
- *
- * GRASP Pattern: Information Expert
  * Owns knowledge of Gin Rummy rules:
  * - 10 cards per player
  * - Gin declaration (all cards in melds)
@@ -21,7 +19,6 @@ import java.util.Properties;
 public class GinRummyStrategy implements GameModeStrategy {
 
     private final Properties properties;
-
     // Track declaration state for this mode
     private boolean isGinDeclared = false;
     private int ginDeclarer = -1;
@@ -42,20 +39,13 @@ public class GinRummyStrategy implements GameModeStrategy {
         return "Gin Rummy";
     }
 
-    public boolean isGinMode() {
-        return true;
-    }
-
     @Override
     public boolean validateDeclaration(Hand hand, int player, String declarationType) {
-        switch (declarationType) {
-            case "GIN":
-                return validateGin(hand, player);
-            case "KNOCK":
-                return validateKnock(hand, player);
-            default:
-                return false;
-        }
+        return switch (declarationType) {
+            case "GIN" -> validateGin(hand, player);
+            case "KNOCK" -> validateKnock(hand, player);
+            default -> false;
+        };
     }
 
     private boolean validateGin(Hand hand, int player) {
@@ -93,17 +83,16 @@ public class GinRummyStrategy implements GameModeStrategy {
         System.out.println("P0 deadwood: " + analyses[0].getDeadwoodValue());
         System.out.println("P1 deadwood: " + analyses[1].getDeadwoodValue());
 
-        int roundWinner = -1;
+        int roundWinner;
 
         if (isGinDeclared && ginDeclarer != -1) {
             // Gin declared - winner gets opponent's deadwood + 25 bonus
             int opponent = (ginDeclarer + 1) % 2;
             int opponentDeadwood = analyses[opponent].getDeadwoodValue();
-            int points = opponentDeadwood ;
-            scores[ginDeclarer] += points;
+            scores[ginDeclarer] += opponentDeadwood;
             roundWinner = ginDeclarer;
 
-            System.out.println("Gin Rummy: P" + ginDeclarer + " wins with GIN! +" + points + " (opponent deadwood: " + opponentDeadwood + ")");
+            System.out.println("Gin Rummy: P" + ginDeclarer + " wins with GIN! +" + opponentDeadwood + " (opponent deadwood: " + opponentDeadwood + ")");
 
         } else if (isKnockDeclared && knocker != -1) {
             // Knock declared
@@ -124,10 +113,9 @@ public class GinRummyStrategy implements GameModeStrategy {
             } else if (knockerDeadwood > opponentDeadwood) {
                 // Undercut! - opponent gets difference + 25 bonus
                 int diff = knockerDeadwood - opponentDeadwood;
-                int points = diff;
-                scores[opponent] += points;
+                scores[opponent] += diff;
                 roundWinner = opponent;
-                System.out.println("Gin Rummy: Undercut by P" + opponent + " +" + points + " (diff: " + diff + ")");
+                System.out.println("Gin Rummy: Undercut by P" + opponent + " +" + diff + " (diff: " + diff + ")");
 
             } else {
                 // Tie - no points awarded
@@ -169,15 +157,13 @@ public class GinRummyStrategy implements GameModeStrategy {
 
     @Override
     public boolean canDeclare(Hand hand, String declarationType) {
-        switch (declarationType) {
-            case "GIN":
-                return MeldDetector.canDeclareGin(hand);
-            case "KNOCK":
+        return switch (declarationType) {
+            case "GIN" -> MeldDetector.canDeclareGin(hand);
+            case "KNOCK" ->
                 // Per spec: Any player can knock at any time
-                return true;
-            default:
-                return false;
-        }
+                    true;
+            default -> false;
+        };
     }
 
     @Override
@@ -190,33 +176,6 @@ public class GinRummyStrategy implements GameModeStrategy {
     @Override
     public boolean usesDeclarationType(String declarationType) {
         return "GIN".equals(declarationType) || "KNOCK".equals(declarationType);
-    }
-
-    // Getters for declaration state
-    public boolean isGinDeclared() {
-        return isGinDeclared;
-    }
-
-    public int getGinDeclarer() {
-        return ginDeclarer;
-    }
-
-    public boolean isKnockDeclared() {
-        return isKnockDeclared;
-    }
-
-    public int getKnocker() {
-        return knocker;
-    }
-
-    public void setGinDeclared(boolean declared, int player) {
-        this.isGinDeclared = declared;
-        this.ginDeclarer = player;
-    }
-
-    public void setKnockDeclared(boolean declared, int player) {
-        this.isKnockDeclared = declared;
-        this.knocker = player;
     }
 
     @Override

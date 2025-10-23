@@ -13,8 +13,6 @@ import java.util.stream.Collectors;
 
 /**
  * Main Controller for the Rummy card game.
- *
- * GRASP Pattern: Controller
  * Responsibilities:
  * - Receives external events (user input, button clicks)
  * - Coordinates game flow (dealing, turns, rounds)
@@ -23,19 +21,11 @@ import java.util.stream.Collectors;
  *   - GameModeStrategy: Mode-specific rules and scoring
  *   - SmartComputerPlayer: AI decision-making
  * - Manages UI updates and user feedback
- *
- * Does NOT:
- * - Contain mode-specific logic (delegated to Strategy)
- * - Perform meld calculations (delegated to MeldDetector)
- * - Make AI decisions (delegated to SmartComputerPlayer)
  */
 @SuppressWarnings("serial")
 public class Rummy extends CardGame {
     // ===== Strategy Pattern =====
-    private GameModeStrategy strategy;
-
-    // ===== Game state (mode-agnostic) =====
-    private boolean stockExhaustedThisRound = false;
+    private final GameModeStrategy strategy;
 
     static public final int seed = 30008;
     static final Random random = new Random(seed);
@@ -45,11 +35,8 @@ public class Rummy extends CardGame {
 
     private final String version = "1.0";
     public final int nbPlayers = 2;
-    public int nbStartCards = 13;
-    private final int handWidth = 400;
-    private final int pileWidth = 40;
-    private final int cardWidth = 40;
-    private int thinkingTime = 300;
+    public int nbStartCards;
+    private final int thinkingTime;
 
     private final Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
     private final Location[] handLocations = {
@@ -76,11 +63,8 @@ public class Rummy extends CardGame {
     private final Location ginLocation   = new Location(80, 570);
     private final Location knockLocation = new Location(80, 650);  // shifted right
 
-    private TextActor packNameActor;
-    private TextActor discardNameActor;
-
     // Smart Computer Player
-    private SmartComputerPlayer smartPlayer;
+    private final SmartComputerPlayer smartPlayer;
 
     private final Location packLocation = new Location(75, 350);
     private final Location discardLocation = new Location(625, 350);
@@ -103,7 +87,7 @@ public class Rummy extends CardGame {
         RUMMY,
         GIN,
         KNOCK,
-        NONE;
+        NONE
     }
     private final TextActor[] scoreActors = {null, null};
     private final TextActor[] pileNameActors = {null, null, null, null};
@@ -111,13 +95,12 @@ public class Rummy extends CardGame {
     Font bigFont = new Font("Arial", Font.BOLD, 36);
     Font smallFont = new Font("Arial", Font.BOLD, 18);
 
-    private final int COMPUTER_PLAYER_INDEX = 0;
     private final int HUMAN_PLAYER_INDEX = 1;
     private int roundWinner = HUMAN_PLAYER_INDEX;
 
     private final Location playingLocation = new Location(350, 350);
     private final Location textLocation = new Location(350, 450);
-    private int delayTime = 600;
+    private final int delayTime;
     private Hand[] hands;
     private int currentRound = 0;
 
@@ -125,11 +108,10 @@ public class Rummy extends CardGame {
         setStatusText(string);
     }
 
-    private int[] scores = new int[nbPlayers];
+    private final int[] scores = new int[nbPlayers];
 
-    private int[] autoIndexHands = new int[nbPlayers];
-    private boolean isAuto = false;
-    private Hand playingArea;
+    private final int[] autoIndexHands = new int[nbPlayers];
+    private final boolean isAuto;
 
     private Card selected;
     private Card drawnCard;
@@ -153,7 +135,7 @@ public class Rummy extends CardGame {
     private void updateScore(int player) {
         removeActor(scoreActors[player]);
         int displayScore = Math.max(scores[player], 0);
-        String text = "P" + player + "[" + String.valueOf(displayScore) + "]";
+        String text = "P" + player + "[" + displayScore + "]";
         scoreActors[player] = new TextActor(text, Color.WHITE, bgColor, bigFont);
         addActor(scoreActors[player], scoreLocations[player]);
     }
@@ -165,18 +147,19 @@ public class Rummy extends CardGame {
     // ===== Piles =====
     private void setupPiles() {
         discard = new Hand(deck);
+        int pileWidth = 40;
         RowLayout discardLayout = new RowLayout(discardLocation, pileWidth);
         discardLayout.setRotationAngle(270);
         discard.setView(this, discardLayout);
         discard.draw();
-        discardNameActor = new TextActor("Discard Pile", Color.WHITE, bgColor, smallFont);
+        TextActor discardNameActor = new TextActor("Discard Pile", Color.WHITE, bgColor, smallFont);
         addActor(discardNameActor, discardNameLocation);
 
         RowLayout packLayout = new RowLayout(packLocation, pileWidth);
         packLayout.setRotationAngle(90);
         pack.setView(this, packLayout);
         pack.draw();
-        packNameActor = new TextActor("Stockpile", Color.WHITE, bgColor, smallFont);
+        TextActor packNameActor = new TextActor("Stockpile", Color.WHITE, bgColor, smallFont);
         addActor(packNameActor, packNameLocation);
 
         discard.addCardListener(new CardAdapter() {
@@ -232,8 +215,9 @@ public class Rummy extends CardGame {
         }
         arrangeStockpile();
 
-        playingArea = new Hand(deck);
+        Hand playingArea = new Hand(deck);
 
+        int cardWidth = 40;
         playingArea.setView(this, new RowLayout(playingLocation, (playingArea.getNumberOfCards() + 3) * cardWidth));
         playingArea.draw();
 
@@ -250,6 +234,7 @@ public class Rummy extends CardGame {
         // graphics
         RowLayout[] layouts = new RowLayout[nbPlayers];
         for (int i = 0; i < nbPlayers; i++) {
+            int handWidth = 400;
             layouts[i] = new RowLayout(handLocations[i], handWidth);
             layouts[i].setRotationAngle(i);
             hands[i].setView(this, layouts[i]);
@@ -285,7 +270,7 @@ public class Rummy extends CardGame {
         addActor(rummyActor, rummyLocation);
         rummyActor.addButtonListener(new GGButtonListener() {
             @Override public void buttonPressed(GGButton ggButton) {
-                handleDeclaration("RUMMY", HUMAN_PLAYER_INDEX);
+                handleDeclaration("RUMMY");
             }
             @Override public void buttonReleased(GGButton ggButton) { }
             @Override public void buttonClicked(GGButton ggButton) { }
@@ -295,7 +280,7 @@ public class Rummy extends CardGame {
         addActor(ginActor, ginLocation);
         ginActor.addButtonListener(new GGButtonListener() {
             @Override public void buttonPressed(GGButton ggButton) {
-                handleDeclaration("GIN", HUMAN_PLAYER_INDEX);
+                handleDeclaration("GIN");
             }
             @Override public void buttonReleased(GGButton ggButton) { }
             @Override public void buttonClicked(GGButton ggButton) { }
@@ -306,7 +291,7 @@ public class Rummy extends CardGame {
         addActor(knockActor, knockLocation);
         knockActor.addButtonListener(new GGButtonListener() {
             @Override public void buttonPressed(GGButton ggButton) {
-                handleDeclaration("KNOCK", HUMAN_PLAYER_INDEX);
+                handleDeclaration("KNOCK");
             }
             @Override public void buttonReleased(GGButton ggButton) { }
             @Override public void buttonClicked(GGButton ggButton) { }
@@ -345,21 +330,19 @@ public class Rummy extends CardGame {
         if (show) {
             ginActor.show();
             knockActor.show();
-            ginActor.setMouseTouchEnabled(false); // Disabled by default
-            knockActor.setMouseTouchEnabled(false);
         } else {
             ginActor.hide();
             knockActor.hide();
-            ginActor.setMouseTouchEnabled(false);
-            knockActor.setMouseTouchEnabled(false);
         }
+        ginActor.setMouseTouchEnabled(false); // Disabled by default
+        knockActor.setMouseTouchEnabled(false);
     }
 
     /**
      * Unified declaration handler - delegates to strategy
      */
-    private void handleDeclaration(String declarationType, int player) {
-        boolean isValid = strategy.validateDeclaration(hands[player], player, declarationType);
+    private void handleDeclaration(String declarationType) {
+        boolean isValid = strategy.validateDeclaration(hands[1], 1, declarationType);
 
         if (!isValid) {
             setStatus("Invalid " + declarationType + " declaration");
@@ -394,7 +377,7 @@ public class Rummy extends CardGame {
 
     private Rank getRankFromString(String cardName) {
         String rankString = cardName.substring(0, cardName.length() - 1);
-        Integer rankValue = Integer.parseInt(rankString);
+        int rankValue = Integer.parseInt(rankString);
 
         for (Rank rank : Rank.values()) {
             if (rank.getShortHandValue() == rankValue) {
@@ -406,9 +389,7 @@ public class Rummy extends CardGame {
     }
 
     private Suit getSuitFromString(String cardName) {
-        String rankString = cardName.substring(0, cardName.length() - 1);
-        String suitString = cardName.substring(cardName.length() - 1, cardName.length());
-        Integer rankValue = Integer.parseInt(rankString);
+        String suitString = cardName.substring(cardName.length() - 1);
 
         for (Suit suit : Suit.values()) {
             if (suit.getSuitShortHand().equals(suitString)) {
@@ -498,18 +479,15 @@ public class Rummy extends CardGame {
 
     /**
      * Logging Logic
-     * @param player
-     * @param discardCard
-     * @param pickupCard
      */
 
     private void addCardPlayedToLog(int player, Card discardCard, Card pickupCard, String action) {
-        logResult.append("P" + player + "-");
-        logResult.append(cardDescriptionForLog(pickupCard) + "-");
+        logResult.append("P").append(player).append("-");
+        logResult.append(cardDescriptionForLog(pickupCard)).append("-");
         logResult.append(cardDescriptionForLog(discardCard));
 
         if (action != null) {
-            logResult.append("-" + action);
+            logResult.append("-").append(action);
         }
 
         logResult.append(",");
@@ -517,19 +495,19 @@ public class Rummy extends CardGame {
 
     private void addRoundInfoToLog(int roundNumber) {
         logResult.append("\n");
-        logResult.append("Round" + roundNumber + ":");
+        logResult.append("Round").append(roundNumber).append(":");
     }
 
     private void addTurnInfoToLog(int turnNumber) {
         logResult.append("\n");
-        logResult.append("Turn" + turnNumber + ":");
+        logResult.append("Turn").append(turnNumber).append(":");
     }
 
     private void addPlayerCardsToLog() {
         logResult.append("\n");
         logResult.append("Initial Cards:");
         for (int i = 0; i < nbPlayers; i++) {
-            logResult.append("P" + i + "-");
+            logResult.append("P").append(i).append("-");
             logResult.append(convertCardListoString(hands[i]));
         }
     }
@@ -547,18 +525,18 @@ public class Rummy extends CardGame {
 
     private void addEndOfRoundToLog() {
         logResult.append("\n");
-        logResult.append("Round" + currentRound +  " End:P0-" + scores[0] + ",P1-" + scores[1]);
+        logResult.append("Round").append(currentRound).append(" End:P0-").append(scores[0]).append(",P1-").append(scores[1]);
     }
 
     private void addEndOfGameToLog(List<Integer> winners) {
         logResult.append("\n");
         if (winners.size() == 1) {
-            logResult.append("Game End:P" + winners.get(0));
+            logResult.append("Game End:P").append(winners.getFirst());
         } else {
             // Multiple winners (draw)
             logResult.append("Game End:");
             for (int i = 0; i < winners.size(); i++) {
-                logResult.append("P" + winners.get(i));
+                logResult.append("P").append(winners.get(i));
                 if (i < winners.size() - 1) {
                     logResult.append(",");
                 }
@@ -567,7 +545,7 @@ public class Rummy extends CardGame {
     }
 
     private Card dealTopCard(Hand hand) {
-        return hand.getCardList().get(hand.getCardList().size() - 1);
+        return hand.getCardList().getLast();
     }
 
     private Card processTopCardFromPile(Hand pile, Hand hand) {
@@ -611,15 +589,15 @@ public class Rummy extends CardGame {
         hand.draw();
     }
 
-    private void setTouchEnableIfNotNull(Hand hand, boolean isEnabled) {
+    private void setTouchEnableIfNotNull(Hand hand) {
         if (hand != null) {
-            hand.setTouchEnabled(isEnabled);
+            hand.setTouchEnabled(true);
         }
     }
 
     private void waitingForHumanToSelectPile(Hand pile1, Hand pile2) {
-        setTouchEnableIfNotNull(pile1, true);
-        setTouchEnableIfNotNull(pile2, true);
+        setTouchEnableIfNotNull(pile1);
+        setTouchEnableIfNotNull(pile2);
         drawnCard = null;
         while (null == drawnCard) delay(delayTime);
     }
@@ -644,8 +622,6 @@ public class Rummy extends CardGame {
 
     /**
      * Gets the last declaration action for logging purposes.
-     *
-     * GRASP: Low Coupling - uses polymorphic interface method
      */
     private String getLastDeclarationAction() {
         return strategy.getDeclarationType();
@@ -654,10 +630,6 @@ public class Rummy extends CardGame {
     /**
      * Checks if computer player should make a declaration.
      * Tries all supported declarations in priority order.
-     *
-     * GRASP: Low Coupling - uses polymorphic strategy methods
-     * GRASP: Protected Variations - works with any strategy, any declarations
-     *
      * @return declaration type or null if no declaration
      */
     private String checkComputerDeclaration(Hand hand, int player) {
@@ -676,8 +648,6 @@ public class Rummy extends CardGame {
     /**
      * Processes a non-automated player turn.
      * Delegates to appropriate handler based on player type.
-     *
-     * GRASP: High Cohesion - delegates to specific handlers
      */
     private void processNonAutoPlaying(int nextPlayer, Hand hand) {
         if (HUMAN_PLAYER_INDEX == nextPlayer) {
@@ -690,8 +660,6 @@ public class Rummy extends CardGame {
     /**
      * Processes a human player's turn.
      * Handles card drawing, discarding, and declaration input.
-     *
-     * GRASP: High Cohesion - focuses only on human player interaction
      */
     private void processHumanTurn(int player, Hand hand) {
         // Draw phase
@@ -723,8 +691,6 @@ public class Rummy extends CardGame {
     /**
      * Processes a computer player's turn.
      * Uses either random or smart AI based on configuration.
-     *
-     * GRASP: High Cohesion - focuses only on computer player logic
      */
     private void processComputerTurn(int player, Hand hand) {
         System.out.println("\n=== P" + player + " COMPUTER TURN START ===");
@@ -748,8 +714,6 @@ public class Rummy extends CardGame {
     /**
      * Processes a random computer player turn.
      * Makes random decisions for drawing and discarding.
-     *
-     * GRASP: High Cohesion - single responsibility (random AI)
      */
     private void processRandomComputerTurn(int player, Hand hand) {
         System.out.println("Using random logic");
@@ -786,9 +750,6 @@ public class Rummy extends CardGame {
     /**
      * Processes a smart computer player turn.
      * Uses SmartComputerPlayer for intelligent decisions.
-     *
-     * GRASP: High Cohesion - single responsibility (smart AI)
-     * GRASP: Information Expert - delegates card evaluation to SmartComputerPlayer
      */
     private void processSmartComputerTurn(int player, Hand hand) {
         setStatusText("Player " + player + " thinking...");
@@ -859,26 +820,18 @@ public class Rummy extends CardGame {
 
     private Card getCardElementFromAutoMovement(Hand hand, String nextMovement) {
         String[] movementComponents = nextMovement.split("-");
-        switch (movementComponents.length) {
-            case 1:
-                return getCardFromList(hand.getCardList(), movementComponents[0]);
-            case 2:
-                return getCardFromList(hand.getCardList(), movementComponents[1]);
-            case 3:
-                return getCardFromList(hand.getCardList(), movementComponents[1]);
-        }
-        return null;
+        return switch (movementComponents.length) {
+            case 1 -> getCardFromList(hand.getCardList(), movementComponents[0]);
+            case 2, 3 -> getCardFromList(hand.getCardList(), movementComponents[1]);
+            default -> null;
+        };
     }
 
     /**
      * Checks if current player has made a valid declaration.
-     *
-     * GRASP: Low Coupling - uses interface methods instead of instanceof checks
-     * GRASP: Polymorphism - strategy handles mode-specific declaration logic
-     *
      * @return true if valid declaration ends the round
      */
-    private boolean checkForDeclarations(int player) {
+    private boolean checkForDeclarations() {
         if (strategy.hasActiveDeclaration()) {
             int declarer = strategy.getDeclaringPlayer();
             String declarationType = strategy.getDeclarationType();
@@ -890,7 +843,7 @@ public class Rummy extends CardGame {
 
     /**
      * Plays a single round of the game.
-     *
+     * <p>
      * GRASP: Controller
      * Coordinates the round flow:
      * 1. Initialize round state
@@ -898,22 +851,19 @@ public class Rummy extends CardGame {
      * 3. Check for declarations (delegated to strategy)
      * 4. Check for stockpile exhaustion
      * 5. Calculate scores (delegated to strategy)
-     *
+     * <p>
      * GRASP: High Cohesion
      * - Focuses only on round flow coordination
      * - Delegates player turns to processNonAutoPlaying()
      * - Delegates scoring to strategy.calculateRoundScores()
      * - Delegates declaration checking to checkForDeclarations()
-     *
-     * @return false (always, for historical reasons)
      */
-    private boolean playARound() {
+    private void playARound() {
         int nextPlayer = roundWinner;
         addRoundInfoToLog(currentRound);
         addPlayerCardsToLog();
         int i = 0;
         boolean isContinue = true;
-        stockExhaustedThisRound = false;
         setupPlayerAutoMovements();
 
         while (isContinue) {
@@ -926,7 +876,7 @@ public class Rummy extends CardGame {
                 if (isAuto) {
                     int nextPlayerAutoIndex = autoIndexHands[nextPlayer];
                     List<String> nextPlayerMovement = playerAutoMovements.get(nextPlayer);
-                    String nextMovement = "";
+                    String nextMovement;
                     boolean hasRunAuto = false;
 
                     if (nextPlayerMovement.size() > nextPlayerAutoIndex) {
@@ -938,7 +888,7 @@ public class Rummy extends CardGame {
 
                             setStatus("Player " + nextPlayer + " is playing");
                             List<CardAction> cardActions = getActionFromAutoMovement(nextMovement);
-                            CardAction cardAction = cardActions.get(0);
+                            CardAction cardAction = cardActions.getFirst();
                             Card card = null;
 
                             if (cardAction == CardAction.DISCARD) {
@@ -986,7 +936,7 @@ public class Rummy extends CardGame {
 
                 // -------- Declarations handling --------
                 // Check if any valid declaration was made
-                boolean declarationMade = checkForDeclarations(nextPlayer);
+                boolean declarationMade = checkForDeclarations();
 
                 if (declarationMade) {
                     System.out.println("Valid declaration made - ending round");
@@ -997,7 +947,6 @@ public class Rummy extends CardGame {
                 // ----- Stockpile exhaustion check -----
                 if (pack.isEmpty()) {
                     System.out.println("\n>>> STOCK EXHAUSTED <<<");
-                    stockExhaustedThisRound = true;
                     setStatus("Stockpile is exhausted. Calculating players' scores now.");
                     isContinue = false;
                     break; // exit the inner for-loop immediately
@@ -1012,7 +961,6 @@ public class Rummy extends CardGame {
         calculateRoundScores();
 
         addEndOfRoundToLog();
-        return false;
     }
 
     private void setupPlayerAutoMovements() {
@@ -1029,8 +977,7 @@ public class Rummy extends CardGame {
             playerMovements[1] = player1AutoMovement;
         }
 
-        for (int i = 0; i < playerMovements.length; i++) {
-            String movementString = playerMovements[i];
+        for (String movementString : playerMovements) {
             List<String> movements = Arrays.asList(movementString.split(","));
             playerAutoMovements.add(movements);
         }
@@ -1066,15 +1013,15 @@ public class Rummy extends CardGame {
         for (int i = 0; i < nbPlayers; i++) updateScore(i);
         int maxScore = 0;
         for (int i = 0; i < nbPlayers; i++) if (scores[i] > maxScore) maxScore = scores[i];
-        List<Integer> winners = new ArrayList<Integer>();
+        List<Integer> winners = new ArrayList<>();
         for (int i = 0; i < nbPlayers; i++) if (scores[i] == maxScore) winners.add(i);
         String winText;
         if (winners.size() == 1) {
             winText = "Game over. Winner is player: " +
-                    winners.iterator().next();
+                    winners.getFirst();
         } else {
             winText = "Game Over. Drawn winners are players: " +
-                    String.join(", ", winners.stream().map(String::valueOf).collect(Collectors.toList()));
+                    winners.stream().map(String::valueOf).collect(Collectors.joining(", "));
         }
         addActor(new Actor("sprites/gameover.gif"), textLocation);
         setStatusText(winText);

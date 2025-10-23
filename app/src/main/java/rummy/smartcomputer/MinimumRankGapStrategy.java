@@ -15,7 +15,7 @@ public class MinimumRankGapStrategy implements CardEvaluationStrategy {
     public boolean evaluate(Card drawnCard, Hand hand, Deck deck) {
         Suit drawnSuit = (Suit) drawnCard.getSuit();
         List<Card> handSuitCards = hand.getCardList().stream()
-                .filter(c -> ((Suit) c.getSuit()) == drawnSuit)
+                .filter(c -> c.getSuit() == drawnSuit)
                 .collect(Collectors.toList());
 
         if (handSuitCards.isEmpty()) {
@@ -41,7 +41,7 @@ public class MinimumRankGapStrategy implements CardEvaluationStrategy {
         List<Integer> ranks = sameSuitCards.stream()
                 .map(c -> ((Rank) c.getRank()).getShortHandValue())
                 .sorted()
-                .collect(Collectors.toList());
+                .toList();
 
         int minGap = Integer.MAX_VALUE;
         for (int i = 0; i < ranks.size() - 1; i++) {

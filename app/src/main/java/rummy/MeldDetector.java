@@ -8,13 +8,10 @@ import java.util.stream.Collectors;
 
 /**
  * Facade and Information Expert for meld detection and analysis.
- *
  * GRASP Pattern: Information Expert
  * Responsibility: Owns all knowledge about meld formation rules and card analysis
- *
  * Design Pattern: Facade
  * Provides simplified interface to complex meld-finding algorithms
- *
  * Clients (Controller, Strategies) use this class for:
  * - Validating meld formations
  * - Calculating deadwood values
@@ -95,17 +92,12 @@ public class MeldDetector {
         int value = rank.getShortHandValue();
 
         // J=11, Q=12, K=13 are all worth 10 points
+        // 2-10 are face value
         if (value >= 11) {
             return 10;
         }
         // Ace is worth 1 point
-        else if (value == 1) {
-            return 1;
-        }
-        // 2-10 are face value
-        else {
-            return value;
-        }
+        else return value;
     }
 
     /**
@@ -246,7 +238,7 @@ public class MeldDetector {
             if (!overlapsWithAny(meld, current)) {
                 current.add(meld);
                 findCombinationsRecursive(melds, i + 1, current, result);
-                current.remove(current.size() - 1);
+                current.removeLast();
             }
         }
     }
@@ -299,7 +291,7 @@ public class MeldDetector {
             return Integer.compare(deadwood1, deadwood2); // Lower deadwood is better
         });
 
-        return validCombinations.get(0);
+        return validCombinations.getFirst();
     }
 
     /**
@@ -401,20 +393,6 @@ public class MeldDetector {
     }
 
     /**
-     * Checks if a player can knock based on deadwood threshold
-     * Note: Per current spec, any player can knock anytime (no threshold),
-     * but this method is useful for AI decision-making
-     *
-     * @param hand The player's hand to check
-     * @param threshold Maximum deadwood value allowed for knocking
-     * @return true if deadwood is at or below threshold
-     */
-    public static boolean canKnock(Hand hand, int threshold) {
-        MeldAnalysis analysis = findBestMelds(hand);
-        return analysis.getDeadwoodValue() <= threshold;
-    }
-
-    /**
      * Gets the deadwood value for a hand without exposing MeldAnalysis
      * Convenience method for quick deadwood queries
      *
@@ -424,46 +402,6 @@ public class MeldDetector {
     public static int getDeadwoodValue(Hand hand) {
         MeldAnalysis analysis = findBestMelds(hand);
         return analysis.getDeadwoodValue();
-    }
-
-    /**
-     * Gets the number of cards that form melds in the hand
-     * Useful for AI evaluation without full analysis exposure
-     *
-     * @param hand The player's hand
-     * @return Number of cards in valid melds
-     */
-    public static int getMeldedCardCount(Hand hand) {
-        MeldAnalysis analysis = findBestMelds(hand);
-        return analysis.getTotalMeldedCards();
-    }
-
-    /**
-     * Checks if adding a specific card would improve meld formation
-     * Useful for AI to decide whether to pick up a card
-     *
-     * @param hand Current hand
-     * @param candidateCard Card being considered
-     * @return true if the card would increase melded cards or reduce deadwood
-     */
-    public static boolean wouldImproveHand(Hand hand, Card candidateCard) {
-        // Analyze current hand
-        MeldAnalysis currentAnalysis = findBestMelds(hand);
-        int currentMelded = currentAnalysis.getTotalMeldedCards();
-        int currentDeadwood = currentAnalysis.getDeadwoodValue();
-
-        // Temporarily add card to test
-        hand.insert(candidateCard, false);
-        MeldAnalysis newAnalysis = findBestMelds(hand);
-        int newMelded = newAnalysis.getTotalMeldedCards();
-        int newDeadwood = newAnalysis.getDeadwoodValue();
-
-        // Remove the test card
-        hand.remove(candidateCard, false);
-
-        // Improvement if more cards melded OR same melded but lower deadwood
-        return (newMelded > currentMelded) ||
-                (newMelded == currentMelded && newDeadwood < currentDeadwood);
     }
 
     /**

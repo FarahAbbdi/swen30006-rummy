@@ -5,8 +5,6 @@ import java.util.Properties;
 /**
  * Singleton Factory for creating game mode strategies.
  * Centralizes strategy creation logic based on configuration.
- *
- * Design Pattern: Singleton Factory
  * - Ensures single factory instance
  * - Creates appropriate strategy based on mode string
  */
@@ -48,27 +46,12 @@ public class GameModeStrategyFactory {
 
         String normalizedMode = mode.toLowerCase().trim();
 
-        switch (normalizedMode) {
-            case "classic":
-                return new ClassicRummyStrategy(properties);
-
-            case "gin":
-                return new GinRummyStrategy(properties);
-
-            default:
-                throw new IllegalArgumentException(
-                        "Unknown game mode: '" + mode + "'. Supported modes: classic, gin"
-                );
-        }
-    }
-
-    /**
-     * Creates strategy with default mode (classic)
-     *
-     * @param properties The game properties configuration
-     * @return Classic Rummy strategy
-     */
-    public GameModeStrategy createDefaultStrategy(Properties properties) {
-        return createStrategy("classic", properties);
+        return switch (normalizedMode) {
+            case "classic" -> new ClassicRummyStrategy(properties);
+            case "gin" -> new GinRummyStrategy(properties);
+            default -> throw new IllegalArgumentException(
+                    "Unknown game mode: '" + mode + "'. Supported modes: classic, gin"
+            );
+        };
     }
 }

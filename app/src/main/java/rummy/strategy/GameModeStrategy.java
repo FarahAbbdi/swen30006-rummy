@@ -8,14 +8,8 @@ import java.util.List;
 
 /**
  * Strategy interface for game mode-specific rules and behaviors.
- *
- * GRASP Pattern: Information Expert
  * Responsibility: Owns knowledge about mode-specific rules (scoring, declarations, card counts)
- *
- * Design Pattern: Strategy
  * Allows runtime selection of game mode behavior without changing controller
- *
- * Design Pattern: Polymorphism
  * Each implementation provides mode-specific behavior through common interface
  */
 public interface GameModeStrategy {
@@ -51,7 +45,6 @@ public interface GameModeStrategy {
     /**
      * Checks if a player can make a declaration with their current hand
      * @param hand The player's hand
-     * @param threshold Additional threshold (e.g., knock threshold)
      * @param declarationType Type of declaration to check
      * @return true if player can declare
      */

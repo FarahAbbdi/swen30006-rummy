@@ -21,14 +21,6 @@ public class SmartComputerPlayer {
     }
 
     /**
-     * Constructor with dependency injection (for testing/customization)
-     */
-    public SmartComputerPlayer(CardEvaluator evaluator, DiscardSelector discardSelector) {
-        this.evaluator = evaluator;
-        this.discardSelector = discardSelector;
-    }
-
-    /**
      * Simple boolean check: should the computer keep this card?
      *
      * @param drawnCard The card being evaluated
@@ -43,17 +35,6 @@ public class SmartComputerPlayer {
                 cardToString(drawnCard), shouldKeep, result.getCriteriaCount());
 
         return shouldKeep;
-    }
-
-    /**
-     * Get detailed evaluation result for a card
-     *
-     * @param drawnCard The card being evaluated
-     * @param hand The current hand (without drawn card)
-     * @return Full evaluation result with all criteria
-     */
-    public CardEvaluator.EvaluationResult evaluateCard(Card drawnCard, Hand hand) {
-        return evaluator.evaluate(drawnCard, hand);
     }
 
     /**

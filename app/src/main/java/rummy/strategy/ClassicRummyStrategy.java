@@ -4,14 +4,11 @@ import ch.aplu.jcardgame.Hand;
 import rummy.MeldDetector;
 import rummy.Rummy;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
 /**
  * Strategy for Classic Rummy mode (13 cards, Rummy declaration only)
- *
- * GRASP Pattern: Information Expert
  * Owns knowledge of Classic Rummy rules:
  * - 13 cards per player
  * - Rummy declaration when all cards form melds
@@ -19,7 +16,6 @@ import java.util.Properties;
  */
 public class ClassicRummyStrategy implements GameModeStrategy {
 
-    private final Properties properties;
     private final int startingCards;
 
     // Track declaration state for this mode
@@ -27,7 +23,6 @@ public class ClassicRummyStrategy implements GameModeStrategy {
     private int rummyDeclarer = -1;
 
     public ClassicRummyStrategy(Properties properties) {
-        this.properties = properties;
         this.startingCards = Integer.parseInt(properties.getProperty("number_cards", "13"));
     }
 
@@ -64,7 +59,7 @@ public class ClassicRummyStrategy implements GameModeStrategy {
 
     @Override
     public int calculateRoundScores(Hand[] hands, MeldDetector.MeldAnalysis[] analyses, int[] scores) {
-        int roundWinner = -1;
+        int roundWinner;
 
         if (isRummyDeclared && rummyDeclarer != -1) {
             // Rummy declared scenario
@@ -122,20 +117,6 @@ public class ClassicRummyStrategy implements GameModeStrategy {
         return "RUMMY".equals(declarationType);
     }
 
-    // Getters for declaration state (used by controller)
-    public boolean isRummyDeclared() {
-        return isRummyDeclared;
-    }
-
-    public int getRummyDeclarer() {
-        return rummyDeclarer;
-    }
-
-    public void setRummyDeclared(boolean declared, int player) {
-        this.isRummyDeclared = declared;
-        this.rummyDeclarer = player;
-    }
-
     @Override
     public boolean hasActiveDeclaration() {
         return isRummyDeclared;
@@ -153,6 +134,6 @@ public class ClassicRummyStrategy implements GameModeStrategy {
 
     @Override
     public List<String> getSupportedDeclarations() {
-        return Arrays.asList("RUMMY");
+        return List.of("RUMMY");
     }
 }

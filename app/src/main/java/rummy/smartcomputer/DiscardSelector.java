@@ -33,7 +33,7 @@ public class DiscardSelector {
 
         if (deadwood.isEmpty()) {
             System.out.println("[Discard Selection] No deadwood, fallback to first card in hand.");
-            return hand.getCardList().get(0);
+            return hand.getCardList().getFirst();
         }
 
         System.out.println("[Discard Selection] Deadwood cards: " + deadwood.size());
@@ -42,7 +42,7 @@ public class DiscardSelector {
         Map<Card, CardEvaluator.EvaluationResult> evaluations = new HashMap<>();
 
         for (Card card : deadwood) {
-            // Create temporary hand WITHOUT this card
+            // Create temporary hand without this card
             Hand tempHand = new Hand(deck);
             for (Card c : hand.getCardList()) {
                 if (!c.equals(card)) {
@@ -59,7 +59,7 @@ public class DiscardSelector {
                     cardToString(card), eval.getCriteriaCount());
         }
 
-        // Step 3: Find cards with LEAST criteria satisfied
+        // Step 3: Find cards with the least criteria satisfied
         int minCriteria = evaluations.values().stream()
                 .mapToInt(CardEvaluator.EvaluationResult::getCriteriaCount)
                 .min()
@@ -67,7 +67,7 @@ public class DiscardSelector {
 
         List<Card> leastCriteriaCards = deadwood.stream()
                 .filter(c -> evaluations.get(c).getCriteriaCount() == minCriteria)
-                .collect(Collectors.toList());
+                .toList();
 
         System.out.printf("[Discard Tie-break] Cards with least criteria (%d): ", minCriteria);
         leastCriteriaCards.forEach(c -> System.out.print(cardToString(c) + " "));
@@ -75,8 +75,8 @@ public class DiscardSelector {
 
         if (leastCriteriaCards.size() == 1) {
             System.out.println("[Discard Selection] Only one card with least criteria: "
-                    + cardToString(leastCriteriaCards.get(0)));
-            return leastCriteriaCards.get(0);
+                    + cardToString(leastCriteriaCards.getFirst()));
+            return leastCriteriaCards.getFirst();
         }
 
         // Step 4: Tie-break by LEAST frequent suit
@@ -90,7 +90,7 @@ public class DiscardSelector {
 
         List<Card> leastFrequentSuitCards = leastCriteriaCards.stream()
                 .filter(c -> suitFrequencies.get((Suit) c.getSuit()) == minFreq)
-                .collect(Collectors.toList());
+                .toList();
 
         System.out.print("[Discard Tie-break] Cards with least frequent suit: ");
         leastFrequentSuitCards.forEach(c -> System.out.print(cardToString(c) + " "));
@@ -99,7 +99,7 @@ public class DiscardSelector {
         // Step 5: Final tie-break by HIGHEST card value
         Card selectedCard = leastFrequentSuitCards.stream()
                 .max(Comparator.comparingInt(MeldDetector::getCardValue))
-                .orElse(leastFrequentSuitCards.get(0));
+                .orElse(leastFrequentSuitCards.getFirst());
 
         System.out.println("[Discard Selection] Card selected (highest value): "
                 + cardToString(selectedCard));

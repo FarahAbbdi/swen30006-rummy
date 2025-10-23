@@ -28,21 +28,6 @@ public class CardEvaluator {
     }
 
     /**
-     * Constructor with custom strategies (for extensibility)
-     */
-    public CardEvaluator(Deck deck, List<CardEvaluationStrategy> strategies) {
-        this.deck = deck;
-        this.strategies = new ArrayList<>(strategies);
-    }
-
-    /**
-     * Add a new strategy dynamically
-     */
-    public void addStrategy(CardEvaluationStrategy strategy) {
-        strategies.add(strategy);
-    }
-
-    /**
      * Evaluate a card against all strategies
      *
      * @param drawnCard The card to evaluate
@@ -104,40 +89,6 @@ public class CardEvaluator {
                 if (result) count++;
             }
             return count;
-        }
-
-        /**
-         * Get result for specific criterion (0-indexed)
-         */
-        public boolean getCriterion(int index) {
-            if (index < 0 || index >= criteriaResults.length) {
-                throw new IndexOutOfBoundsException("Invalid criterion index: " + index);
-            }
-            return criteriaResults[index];
-        }
-
-        /**
-         * Get all results as array
-         */
-        public boolean[] getAllResults() {
-            return Arrays.copyOf(criteriaResults, criteriaResults.length);
-        }
-
-        // Backward compatibility methods (if needed for existing code)
-        public boolean criterion1() {
-            return criteriaResults.length > 0 ? criteriaResults[0] : false;
-        }
-
-        public boolean criterion2() {
-            return criteriaResults.length > 1 ? criteriaResults[1] : false;
-        }
-
-        public boolean criterion3() {
-            return criteriaResults.length > 2 ? criteriaResults[2] : false;
-        }
-
-        public boolean criterion4() {
-            return criteriaResults.length > 3 ? criteriaResults[3] : false;
         }
     }
 }
