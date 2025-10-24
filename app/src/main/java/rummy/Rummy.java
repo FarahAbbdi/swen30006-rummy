@@ -635,8 +635,14 @@ public class Rummy extends CardGame {
      * @return declaration type or null if no declaration
      */
     private String checkComputerDeclaration(Hand hand, int player) {
+        final int deadwood = MeldDetector.getDeadwoodValue(hand);
+
         // Try each supported declaration in priority order
         for (String declarationType : strategy.getSupportedDeclarations()) {
+            if ("KNOCK".equals(declarationType) && deadwood > 7) {
+                continue; // try next declaration (if any)
+            }
+
             if (strategy.canDeclare(hand, declarationType)) {
                 boolean isValid = strategy.validateDeclaration(hand, player, declarationType);
                 if (isValid) {
