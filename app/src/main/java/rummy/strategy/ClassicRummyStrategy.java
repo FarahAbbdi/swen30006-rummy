@@ -58,7 +58,13 @@ public class ClassicRummyStrategy implements GameModeStrategy {
     }
 
     @Override
-    public int calculateRoundScores(Hand[] hands, MeldDetector.MeldAnalysis[] analyses, int[] scores) {
+    public int calculateRoundScores(Hand[] hands, int[] scores, boolean stockExhausted) {
+        MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[hands.length];
+        for (int i = 0; i < hands.length; i++) {
+            analyses[i] = MeldDetector.findBestMelds(hands[i]);
+            System.out.println("P" + i + " " + MeldDetector.getMeldSummary(hands[i]));
+        }
+
         int roundWinner;
 
         if (isRummyDeclared && rummyDeclarer != -1) {
@@ -70,7 +76,7 @@ public class ClassicRummyStrategy implements GameModeStrategy {
 
             System.out.println("Classic Rummy: P" + rummyDeclarer + " wins with Rummy! +" + pointsEarned);
 
-        } else {
+        } else if (stockExhausted) {
             // Stockpile exhausted scenario
             int d0 = analyses[0].getDeadwoodValue();
             int d1 = analyses[1].getDeadwoodValue();
@@ -87,6 +93,9 @@ public class ClassicRummyStrategy implements GameModeStrategy {
                 System.out.println("Classic Rummy: Stock exhausted, tie - no points");
                 roundWinner = 0; // Default to P0 for next round start
             }
+        } else {
+            System.out.println("Classic Rummy: Round ended with no valid conclusion");
+            roundWinner = 0;
         }
 
         // Reset declaration state for next round

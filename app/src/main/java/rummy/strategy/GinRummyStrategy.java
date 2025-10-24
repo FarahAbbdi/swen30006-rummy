@@ -76,10 +76,17 @@ public class GinRummyStrategy implements GameModeStrategy {
     }
 
     @Override
-    public int calculateRoundScores(Hand[] hands, MeldDetector.MeldAnalysis[] analyses, int[] scores) {
+    public int calculateRoundScores(Hand[] hands, int[] scores, boolean stockExhausted) {
         System.out.println("\n=== GIN RUMMY SCORING ===");
         System.out.println("Gin declared: " + isGinDeclared + " by P" + ginDeclarer);
         System.out.println("Knock declared: " + isKnockDeclared + " by P" + knocker);
+
+        MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[hands.length];
+        for (int i = 0; i < hands.length; i++) {
+            analyses[i] = MeldDetector.findBestMelds(hands[i]);
+            System.out.println("P" + i + " " + MeldDetector.getMeldSummary(hands[i]));
+        }
+
         System.out.println("P0 deadwood: " + analyses[0].getDeadwoodValue());
         System.out.println("P1 deadwood: " + analyses[1].getDeadwoodValue());
 
@@ -123,7 +130,7 @@ public class GinRummyStrategy implements GameModeStrategy {
                 roundWinner = knocker; // Knocker still goes first next round
             }
 
-        } else {
+        } else if (stockExhausted) {
             // Stockpile exhausted - lower deadwood wins opponent's deadwood value
             int d0 = analyses[0].getDeadwoodValue();
             int d1 = analyses[1].getDeadwoodValue();
@@ -140,6 +147,9 @@ public class GinRummyStrategy implements GameModeStrategy {
                 System.out.println("Gin Rummy: Stock exhausted, tie - no points");
                 roundWinner = 0;
             }
+        } else {
+            System.out.println("Gin Rummy: Round ended with no valid conclusion");
+            roundWinner = 0;
         }
 
         System.out.println("Scores after round: P0=" + scores[0] + ", P1=" + scores[1]);

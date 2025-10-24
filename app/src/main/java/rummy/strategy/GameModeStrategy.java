@@ -35,12 +35,12 @@ public interface GameModeStrategy {
 
     /**
      * Calculates scores at end of round based on mode-specific rules
-     * @param hands Array of player hands
-     * @param analyses Array of meld analyses for each player
-     * @param scores Current score array to update
-     * @return Index of round winner
+     * @param hands All player hands
+     * @param scores Current scores (will be mutated)
+     * @param stockExhausted Whether stockpile ran out
+     * @return Round winner index
      */
-    int calculateRoundScores(Hand[] hands, MeldDetector.MeldAnalysis[] analyses, int[] scores);
+    int calculateRoundScores(Hand[] hands, int[] scores, boolean stockExhausted);;
 
     /**
      * Checks if a player can make a declaration with their current hand

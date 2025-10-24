@@ -117,6 +117,8 @@ public class Rummy extends CardGame {
     private Card drawnCard;
     private boolean isEndingTurn = false;
 
+    private boolean stockExhaustedThisRound = false;
+
     // ===== Score UI =====
     private void initScore() {
         for (int i = 0; i < nbPlayers; i++) {
@@ -947,6 +949,7 @@ public class Rummy extends CardGame {
                 // ----- Stockpile exhaustion check -----
                 if (pack.isEmpty()) {
                     System.out.println("\n>>> STOCK EXHAUSTED <<<");
+                    stockExhaustedThisRound = true;
                     setStatus("Stockpile is exhausted. Calculating players' scores now.");
                     isContinue = false;
                     break; // exit the inner for-loop immediately
@@ -1054,15 +1057,8 @@ public class Rummy extends CardGame {
         System.out.println("\n========== CALCULATING ROUND SCORES ==========");
         System.out.println("Mode: " + strategy.getModeName());
 
-        // Analyze all hands
-        MeldDetector.MeldAnalysis[] analyses = new MeldDetector.MeldAnalysis[nbPlayers];
-        for (int i = 0; i < nbPlayers; i++) {
-            analyses[i] = MeldDetector.findBestMelds(hands[i]);
-            System.out.println("P" + i + " " + MeldDetector.getMeldSummary(hands[i]));
-        }
-
         // Delegate scoring to strategy
-        roundWinner = strategy.calculateRoundScores(hands, analyses, scores);
+        roundWinner = strategy.calculateRoundScores(hands, scores, stockExhaustedThisRound);
 
         setStatus("Round ended. P" + roundWinner + " wins!");
         System.out.println("New scores: P0=" + scores[0] + " P1=" + scores[1]);
