@@ -8,15 +8,6 @@ import java.util.stream.Collectors;
 
 /**
  * Facade and Information Expert for meld detection and analysis.
- * GRASP Pattern: Information Expert
- * Responsibility: Owns all knowledge about meld formation rules and card analysis
- * Design Pattern: Facade
- * Provides simplified interface to complex meld-finding algorithms
- * Clients (Controller, Strategies) use this class for:
- * - Validating meld formations
- * - Calculating deadwood values
- * - Determining best meld combinations
- * - Checking declaration eligibility
  */
 public class MeldDetector {
 

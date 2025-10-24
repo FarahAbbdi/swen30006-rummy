@@ -845,20 +845,6 @@ public class Rummy extends CardGame {
 
     /**
      * Plays a single round of the game.
-     * <p>
-     * GRASP: Controller
-     * Coordinates the round flow:
-     * 1. Initialize round state
-     * 2. Loop through turns for each player
-     * 3. Check for declarations (delegated to strategy)
-     * 4. Check for stockpile exhaustion
-     * 5. Calculate scores (delegated to strategy)
-     * <p>
-     * GRASP: High Cohesion
-     * - Focuses only on round flow coordination
-     * - Delegates player turns to processNonAutoPlaying()
-     * - Delegates scoring to strategy.calculateRoundScores()
-     * - Delegates declaration checking to checkForDeclarations()
      */
     private void playARound() {
         int nextPlayer = roundWinner;
